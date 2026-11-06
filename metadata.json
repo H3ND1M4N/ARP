@@ -1,6 +1,8 @@
 {
-  "name": "SI-MANTAP BBPMP Jawa Timur",
-  "description": "Sistem Informasi Manajemen Peta Mutu Pendidikan Provinsi Jawa Timur (SI-MANTAP v.2.0) - Portal Pemetaan 8 Standar Mutu Pendidikan, Rapor Pendidikan, Unggah RKT, dan Analisis Rekomendasi Berbasis Data dengan Gemini Thinking AI.",
+  "name": "ARP",
+  "description": "ARP (Aplikasi Rekomendasi Pendidikan) - Portal Analitik Peta Mutu 8 SNP, Rapor Pendidikan, Generator RKT Otomatis, dan Penyesuaian Anggaran Sekolah Mandiri buatan Hendy Firmansyah.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

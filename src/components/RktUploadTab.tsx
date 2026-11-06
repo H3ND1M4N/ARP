@@ -9,26 +9,47 @@ import {
   UserCheck,
   Send,
   MessageSquare,
+  Sparkles,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
-import { RktDocument } from '../data/simantapData';
+import { RktDocument, SchoolProfile, RaporIndicator } from '../data/simantapData';
+import { RktGeneratorWorkbench } from './RktGeneratorWorkbench';
 
 interface RktUploadTabProps {
   documents: RktDocument[];
   currentRole: 'public' | 'school' | 'supervisor';
+  school: SchoolProfile;
+  indicators: RaporIndicator[];
   onUploadNewDocument: (doc: Omit<RktDocument, 'id'>) => void;
   onUpdateValidationStatus: (
     id: string,
     status: 'Menunggu Validasi' | 'Disetujui' | 'Perlu Perbaikan',
     notes: string
   ) => void;
+  onTriggerAiRefinement?: (prompt: string) => void;
+  activeSubView?: 'generator' | 'upload';
+  onChangeSubView?: (view: 'generator' | 'upload') => void;
 }
 
 export const RktUploadTab: React.FC<RktUploadTabProps> = ({
   documents,
   currentRole,
+  school,
+  indicators,
   onUploadNewDocument,
   onUpdateValidationStatus,
+  onTriggerAiRefinement,
+  activeSubView,
+  onChangeSubView,
 }) => {
+  const [internalSubView, setInternalSubView] = useState<'generator' | 'upload'>('generator');
+  const subView = activeSubView ?? internalSubView;
+  const setSubView = (v: 'generator' | 'upload') => {
+    if (onChangeSubView) onChangeSubView(v);
+    setInternalSubView(v);
+  };
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState('Rencana Kegiatan Tahunan (RKT) SDN Gunungsari 04 Tahun 2027');
   const [academicYear, setAcademicYear] = useState('2026/2027');
@@ -76,17 +97,86 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Notice Banner */}
-      <div className="bg-amber-500/10 border border-amber-300/80 p-4 rounded-xl flex items-start gap-3 text-xs text-amber-950">
-        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-        <div>
-          <strong className="block text-amber-900 font-bold">
-            Informasi Sistem Unggah RKT ARP:
-          </strong>
-          Format dokumen yang didukung adalah PDF atau Excel (maksimal 20 MB). Pastikan dokumen telah mencantumkan
-          lembar pengesahan Kepala Sekolah dan Komite Sekolah sebelum diajukan ke Pengawas Pembina.
+      {/* Sub-view Navigation Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
+        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setSubView('generator')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+              subView === 'generator'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Generator RKT Otomatis (Rapor Pendidikan)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubView('upload')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+              subView === 'upload'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <UploadCloud className="w-4 h-4 text-indigo-400" />
+            <span>Unggah Manual & Arsip Dokumen RKT ({documents.length})</span>
+          </button>
         </div>
+
+        <span className="text-xs text-slate-500 font-mono">
+          NPSN: <strong className="text-slate-800">{school.npsn}</strong> • {school.name}
+        </span>
       </div>
+
+      {subView === 'generator' ? (
+        <RktGeneratorWorkbench
+          school={school}
+          indicators={indicators}
+          academicYear="2026/2027"
+          onSaveToDocuments={onUploadNewDocument}
+          onNavigateToDocuments={() => setSubView('upload')}
+          onTriggerAiRefinement={onTriggerAiRefinement}
+        />
+      ) : (
+        <>
+          {/* Quick Callout in Upload View */}
+          <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-950 shadow-xs">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <strong className="block font-bold text-amber-950">
+                  Ingin menyusun RKT otomatis tanpa membuat dokumen manual?
+                </strong>
+                <p className="text-amber-900 mt-0.5">
+                  Gunakan fitur Generator RKT untuk memetakan capaian Rapor Pendidikan langsung ke program ARKAS dan target triwulan.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubView('generator')}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shrink-0"
+            >
+              <span>Buka Generator RKT</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Notice Banner */}
+          <div className="bg-amber-500/10 border border-amber-300/80 p-4 rounded-xl flex items-start gap-3 text-xs text-amber-950">
+            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block text-amber-900 font-bold">
+                Informasi Sistem Unggah RKT ARP:
+              </strong>
+              Format dokumen yang didukung adalah PDF atau Excel (maksimal 20 MB). Pastikan dokumen telah mencantumkan
+              lembar pengesahan Kepala Sekolah dan Komite Sekolah sebelum diajukan ke Pengawas Pembina.
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Upload Form Card */}
@@ -223,81 +313,86 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
                   <p className="italic text-slate-600 leading-relaxed">{doc.supervisorNotes}</p>
                 </div>
 
-                {/* Supervisor Review Action (if role is supervisor) */}
-                {currentRole === 'supervisor' && (
-                  <div className="pt-2 border-t border-slate-200">
-                    {reviewDocId === doc.id ? (
-                      <div className="space-y-2 text-xs bg-slate-100 p-3 rounded-lg">
+                {/* Supervisor Review Action */}
+                <div className="pt-2 border-t border-slate-200">
+                  {reviewDocId === doc.id ? (
+                    <div className="space-y-2 text-xs bg-slate-100 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
                         <label className="block font-bold text-slate-800">Ubah Status Validasi:</label>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setReviewStatus('Disetujui')}
-                            className={`px-3 py-1 rounded font-bold transition ${
-                              reviewStatus === 'Disetujui'
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-white text-slate-700 border border-slate-300'
-                            }`}
-                          >
-                            Setujui RKT
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setReviewStatus('Perlu Perbaikan')}
-                            className={`px-3 py-1 rounded font-bold transition ${
-                              reviewStatus === 'Perlu Perbaikan'
-                                ? 'bg-rose-600 text-white'
-                                : 'bg-white text-slate-700 border border-slate-300'
-                            }`}
-                          >
-                            Minta Revisi
-                          </button>
-                        </div>
-
-                        <textarea
-                          value={reviewNotes}
-                          onChange={(e) => setReviewNotes(e.target.value)}
-                          placeholder="Tuliskan catatan arahan pengawas..."
-                          className="w-full p-2 bg-white border border-slate-300 rounded text-slate-900 mt-2"
-                          rows={2}
-                        />
-
-                        <div className="flex justify-end gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setReviewDocId(null)}
-                            className="px-3 py-1 bg-white border border-slate-300 rounded text-slate-700"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSupervisorSubmitReview(doc.id)}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded"
-                          >
-                            Kirim Hasil Validasi
-                          </button>
-                        </div>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          Pengawas: <strong className="text-slate-800">{school.supervisor}</strong>
+                        </span>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setReviewDocId(doc.id);
-                          setReviewNotes(doc.supervisorNotes);
-                        }}
-                        className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Validasi Dokumen Ini (Akses Pengawas)</span>
-                      </button>
-                    )}
-                  </div>
-                )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReviewStatus('Disetujui')}
+                          className={`px-3 py-1 rounded font-bold transition ${
+                            reviewStatus === 'Disetujui'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-slate-700 border border-slate-300'
+                          }`}
+                        >
+                          Setujui RKT
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReviewStatus('Perlu Perbaikan')}
+                          className={`px-3 py-1 rounded font-bold transition ${
+                            reviewStatus === 'Perlu Perbaikan'
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-white text-slate-700 border border-slate-300'
+                          }`}
+                        >
+                          Minta Revisi
+                        </button>
+                      </div>
+
+                      <textarea
+                        value={reviewNotes}
+                        onChange={(e) => setReviewNotes(e.target.value)}
+                        placeholder="Tuliskan catatan arahan pengawas..."
+                        className="w-full p-2 bg-white border border-slate-300 rounded text-slate-900 mt-2"
+                        rows={2}
+                      />
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setReviewDocId(null)}
+                          className="px-3 py-1 bg-white border border-slate-300 rounded text-slate-700"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSupervisorSubmitReview(doc.id)}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded"
+                        >
+                          Kirim Hasil Validasi
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setReviewDocId(doc.id);
+                        setReviewNotes(doc.supervisorNotes);
+                      }}
+                      className="text-xs text-blue-700 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Validasi & Catatan Pengawas ({school.supervisor})</span>
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 };

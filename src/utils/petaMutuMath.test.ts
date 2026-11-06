@@ -10,6 +10,7 @@ import {
   calculateArkasSummary,
   calculateSchoolBudgetAdjustment,
   validateRaporUpload,
+  generateRktFromRapor,
   SnpStandardScore,
   ArkasProgramItem,
 } from './petaMutuMath';
@@ -141,4 +142,49 @@ test('validateRaporUpload checks NPSN and indicators count', () => {
   assert.equal(tooFewIndicators.isValid, false);
   assert.match(tooFewIndicators.error!, /kurang dari 5 indikator/);
 });
+
+test('generateRktFromRapor produces structured RKT with prioritized items and valid totals', () => {
+  const sampleIndicators = [
+    { code: 'A.1', name: 'Kemampuan Literasi', score: 78.4, label: 'Baik' as const },
+    { code: 'A.2', name: 'Kemampuan Numerasi', score: 62.1, label: 'Sedang' as const }, // Priority 1 (< 70)
+    { code: 'A.3', name: 'Karakter Peserta Didik', score: 81.2, label: 'Baik' as const },
+    { code: 'D.1', name: 'Kualitas Pembelajaran', score: 72.8, label: 'Baik' as const },
+    { code: 'D.4', name: 'Iklim Keamanan Satuan Pendidikan', score: 88.5, label: 'Baik' as const },
+    { code: 'D.8', name: 'Iklim Kebinekaan', score: 84.0, label: 'Baik' as const },
+    { code: 'D.10', name: 'Iklim Inklusivitas & Disabilitas', score: 66.5, label: 'Sedang' as const }, // Priority 1 (< 70)
+  ];
+
+  const rkt = generateRktFromRapor(
+    sampleIndicators,
+    { npsn: '20536900', name: 'SD NEGERI GUNUNGSARI 04' },
+    '2026/2027'
+  );
+
+  assert.equal(rkt.schoolName, 'SD NEGERI GUNUNGSARI 04');
+  assert.equal(rkt.sourceNpsn, '20536900');
+  assert.equal(rkt.academicYear, '2026/2027');
+  assert.equal(rkt.summary.totalPrograms, 7);
+  assert.equal(rkt.summary.p1Count, 2); // Numerasi (62.1) & Inklusivitas (66.5)
+  assert.equal(rkt.items.length, 7);
+
+  // The first item should be a Priority 1 item
+  assert.equal(rkt.items[0].priorityLevel, 'Prioritas Utama (P1)');
+
+  // Numerasi action check
+  const numerasiItem = rkt.items.find((i) => i.raporCode === 'A.2');
+  assert.ok(numerasiItem);
+  assert.equal(numerasiItem?.arkasCode, '02.04.03');
+  assert.equal(numerasiItem?.fundingSource, 'BOS Reguler');
+  assert.equal(numerasiItem?.estimatedBudget, 6500000);
+
+  // D.1 Kombel non-cost check
+  const kombelItem = rkt.items.find((i) => i.raporCode === 'D.1');
+  assert.ok(kombelItem);
+  assert.equal(kombelItem?.fundingSource, 'Non-Biaya');
+  assert.equal(kombelItem?.estimatedBudget, 0);
+
+  assert.ok(rkt.summary.totalBudget > 0);
+  assert.ok(rkt.summary.nonCostCount >= 1);
+});
+
 

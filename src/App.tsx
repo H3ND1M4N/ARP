@@ -40,7 +40,6 @@ import { ArkasTab } from './components/ArkasTab';
 import { PenyesuaianAnggaranTab } from './components/PenyesuaianAnggaranTab';
 import { RktUploadTab } from './components/RktUploadTab';
 import { AiThinkingAssistantTab } from './components/AiThinkingAssistantTab';
-import { PortalLoginModal } from './components/PortalLoginModal';
 import { RegionalSelectorModal } from './components/RegionalSelectorModal';
 import { PrintReportModal } from './components/PrintReportModal';
 
@@ -64,14 +63,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('snp');
   const [selectedYear, setSelectedYear] = useState<'2026' | '2025' | '2024'>('2026');
   const [currentRole, setCurrentRole] = useState<'public' | 'school' | 'supervisor'>('public');
+  const [rktSubView, setRktSubView] = useState<'generator' | 'upload'>('generator');
 
   // Modals
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isRegionalModalOpen, setIsRegionalModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // AI Prompt preset query trigger
   const [aiFocusPrompt, setAiFocusPrompt] = useState<string>('');
+
+  const handleOpenRktGenerator = (customIndicators?: RaporIndicator[]) => {
+    if (customIndicators && customIndicators.length > 0) {
+      setRaporIndicators(customIndicators);
+    }
+    setRktSubView('generator');
+    setActiveTab('rkt');
+  };
 
   // Overall Score & SNP Predicate calculation
   const overallCalc = calculateOverallSnpScore(snpStandards);
@@ -187,22 +194,20 @@ export default function App() {
       {/* Official Government Header Nav */}
       <HeaderNav
         currentSchool={currentSchool}
-        currentRole={currentRole}
-        onRoleChange={setCurrentRole}
         onOpenRegionalSelector={() => setIsRegionalModalOpen(true)}
-        onOpenLogin={() => setIsLoginModalOpen(true)}
         onQuickSearchNpsn={handleQuickSearchNpsn}
         onPrintReport={() => setIsPrintModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
-        {/* School Identity Header Card */}
+        {/* School Identity Header Card with manual input for Kepala Sekolah & Pengawas */}
         <SchoolHeaderCard
           school={currentSchool}
           overallScore={overallCalc.averageScore}
           scaled7={overallCalc.scaled7}
           category={overallCalc.category}
+          onUpdateSchool={(updates) => setCurrentSchool((prev) => ({ ...prev, ...updates }))}
         />
 
         {/* Tab Navigation Pill Bar */}
@@ -288,7 +293,7 @@ export default function App() {
             }`}
           >
             <UploadCloud className="w-4 h-4 text-indigo-400" />
-            <span>Unggah RKT & Verifikasi</span>
+            <span>Pembuatan RKT & Verifikasi</span>
           </button>
 
           <button
@@ -418,6 +423,7 @@ export default function App() {
             school={currentSchool}
             currentIndicators={raporIndicators}
             onApplyNewRaporData={handleApplyNewRaporData}
+            onOpenRktGenerator={handleOpenRktGenerator}
           />
         )}
 
@@ -457,13 +463,18 @@ export default function App() {
           />
         )}
 
-        {/* Tab 5: Unggah RKT & Verifikasi Pengawas */}
+        {/* Tab 5: Pembuatan RKT & Verifikasi Pengawas */}
         {activeTab === 'rkt' && (
           <RktUploadTab
             documents={rktDocuments}
             currentRole={currentRole}
+            school={currentSchool}
+            indicators={raporIndicators}
             onUploadNewDocument={handleUploadRkt}
             onUpdateValidationStatus={handleUpdateRktValidation}
+            onTriggerAiRefinement={handleTriggerAiFromOtherTab}
+            activeSubView={rktSubView}
+            onChangeSubView={setRktSubView}
           />
         )}
 
@@ -507,12 +518,6 @@ export default function App() {
       </footer>
 
       {/* Modals */}
-      <PortalLoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={(role) => setCurrentRole(role)}
-      />
-
       <RegionalSelectorModal
         isOpen={isRegionalModalOpen}
         onClose={() => setIsRegionalModalOpen(false)}

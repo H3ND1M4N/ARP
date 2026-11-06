@@ -19,6 +19,7 @@ interface UploadRaporPendidikanTabProps {
   school: SchoolProfile;
   currentIndicators: RaporIndicator[];
   onApplyNewRaporData: (newIndicators: RaporIndicator[], releaseYear: string) => void;
+  onOpenRktGenerator?: (indicators?: RaporIndicator[]) => void;
 }
 
 export interface UploadHistoryItem {
@@ -36,6 +37,7 @@ export const UploadRaporPendidikanTab: React.FC<UploadRaporPendidikanTabProps> =
   school,
   currentIndicators,
   onApplyNewRaporData,
+  onOpenRktGenerator,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -415,32 +417,92 @@ export const UploadRaporPendidikanTab: React.FC<UploadRaporPendidikanTabProps> =
           </div>
 
           {/* Action Bar */}
-          <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between">
+          <div className="pt-4 border-t border-slate-100 mt-4 flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-slate-500">
-              {previewData ? '7 Indikator valid terverifikasi' : '7 Indikator terdaftar'}
+              {previewData ? '7 Indikator valid terverifikasi' : '7 Indikator aktif'}
             </span>
 
-            {previewData && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPreviewData(null)}
-                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={handleApplySync}
-                  className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-600/20 transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Terapkan Sinkronisasi ke ARP</span>
-                </button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {previewData ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewData(null)}
+                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+                  >
+                    Batal
+                  </button>
+
+                  {onOpenRktGenerator && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRktGenerator(previewData)}
+                      className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-bold text-xs flex items-center gap-1.5 transition"
+                      title="Buka Generator RKT menggunakan data yang baru diunggah ini"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Buat RKT dari Berkas Ini</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleApplySync}
+                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-600/20 transition"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Terapkan Sinkronisasi</span>
+                  </button>
+                </>
+              ) : (
+                onOpenRktGenerator && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenRktGenerator(currentIndicators)}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Buat RKT Otomatis dari Rapor Ini</span>
+                  </button>
+                )
+              )}
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* RKT Auto Generator Feature Callout */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white p-5 rounded-2xl border border-indigo-800/60 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shrink-0 mt-0.5">
+            <Sparkles className="w-5 h-5 text-slate-950" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-mono">
+                Fitur Baru Perencanaan PBD
+              </span>
+              <span className="text-xs text-blue-200">Sistem Mandiri • Hendy Firmansyah</span>
+            </div>
+            <h4 className="text-base font-bold text-white mt-1">
+              Pembuatan Dokumen RKT Otomatis Berbasis Rapor Pendidikan
+            </h4>
+            <p className="text-xs text-blue-200 mt-0.5 max-w-2xl leading-relaxed">
+              Konversi langsung hasil analisis Rapor Pendidikan menjadi draf RKT lengkap dengan pemetaan masalah, akar masalah, kegiatan ARKAS, target keberhasilan, jadwal triwulan, dan alokasi anggaran siap cetak atau ekspor.
+            </p>
+          </div>
+        </div>
+
+        {onOpenRktGenerator && (
+          <button
+            type="button"
+            onClick={() => onOpenRktGenerator(previewData || currentIndicators)}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 transition shadow-md shrink-0"
+          >
+            <Sparkles className="w-4 h-4 text-slate-950" />
+            <span>Buka Generator RKT Berbasis Data</span>
+          </button>
+        )}
       </div>
 
       {/* Synchronization History */}

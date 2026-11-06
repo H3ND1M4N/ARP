@@ -253,3 +253,241 @@ export function validateRaporUpload(
   return { isValid: true };
 }
 
+export interface RktActionItem {
+  id: string;
+  raporCode: string;
+  raporName: string;
+  currentScore: number;
+  category: 'Baik' | 'Sedang' | 'Kurang';
+  priorityLevel: 'Prioritas Utama (P1)' | 'Prioritas Lanjutan (P2)' | 'Pemeliharaan Mutu (P3)';
+  rootCause: string;
+  programName: string;
+  activityName: string;
+  arkasCode: string;
+  targetIndicator: string;
+  estimatedBudget: number;
+  fundingSource: 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya' | 'APBD';
+  quarterTimeline: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
+  personInCharge: string;
+  notes?: string;
+}
+
+export interface GeneratedRktData {
+  title: string;
+  academicYear: string;
+  generatedAt: string;
+  sourceNpsn: string;
+  schoolName: string;
+  summary: {
+    totalPrograms: number;
+    totalBudget: number;
+    nonCostCount: number;
+    p1Count: number;
+    p2Count: number;
+    priorityIndicators: string[];
+  };
+  items: RktActionItem[];
+}
+
+export interface MinimalRaporIndicator {
+  code: string;
+  name: string;
+  score: number;
+  label?: 'Baik' | 'Sedang' | 'Kurang';
+}
+
+/**
+ * Generates structured RKT (Rencana Kerja Tahunan) based on uploaded/active Rapor Pendidikan indicators.
+ * Conforms to authentic Kemendikdasmen Perencanaan Berbasis Data (PBD) guidelines and ARKAS nomenclature.
+ */
+export function generateRktFromRapor(
+  indicators: MinimalRaporIndicator[],
+  schoolInfo: { npsn: string; name: string },
+  academicYear: string = '2026/2027'
+): GeneratedRktData {
+  const items: RktActionItem[] = [];
+  const priorityIndicators: string[] = [];
+
+  const blueprintMap: Record<
+    string,
+    {
+      rootCause: string;
+      programName: string;
+      activityName: string;
+      arkasCode: string;
+      targetIndicator: string;
+      defaultBudget: number;
+      defaultSource: 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya';
+      timeline: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
+      pic: string;
+    }
+  > = {
+    'A.1': {
+      rootCause: 'Rendahnya minat baca kritis & minim ragam buku non-teks ramah anak di perpustakaan/sudut baca kelas.',
+      programName: 'Program Penguatan Gerakan Literasi Sekolah (GLS)',
+      activityName: 'Revitalisasi Pojok Baca Kelas & Pengadaan Buku Cerita Bergambar Ramah Anak Non-Teks',
+      arkasCode: '03.05.01',
+      targetIndicator: '100% kelas memiliki pojok baca aktif; skor literasi naik minimal +4.5 poin.',
+      defaultBudget: 4500000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW1', 'TW2'],
+      pic: 'Koordinator Literasi & Guru Kelas',
+    },
+    'A.2': {
+      rootCause: 'Guru belum terbiasa menerapkan strategi numerasi kontekstual & minim media manipulatif pemecahan masalah.',
+      programName: 'Program Penguatan Kompetensi Pendidik Bidang Numerasi & Penalaran Logika',
+      activityName: 'Pelatihan Bimtek Modul Ajar Numerasi & Pengadaan Kit Peraga Matematika Kontekstual',
+      arkasCode: '02.04.03',
+      targetIndicator: 'Seluruh guru kelas 1-6 menerapkan modul numerasi PMM; skor numerasi mencapai predikat Baik (>=72.0).',
+      defaultBudget: 6500000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW1', 'TW2', 'TW3'],
+      pic: 'Waka Kurikulum & Tim Pengembang',
+    },
+    'A.3': {
+      rootCause: 'Penanaman profil Pelajar Pancasila belum terinternalisasi maksimal dalam pembiasaan dan iklim kelas.',
+      programName: 'Program Penguatan Karakter & Gelar Karya Projek Penguatan Profil Pelajar Pancasila (P5)',
+      activityName: 'Penyelenggaraan Gelar Karya P5 Kewirausahaan & Budaya Kearifan Lokal Kota Batu',
+      arkasCode: '03.04.02',
+      targetIndicator: '100% siswa aktif berpartisipasi dalam pameran P5; pembiasaan gotong royong dan kemandirian meningkat.',
+      defaultBudget: 3500000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW2', 'TW4'],
+      pic: 'Koordinator P5 & Pembina Kesiswaan',
+    },
+    'D.1': {
+      rootCause: 'Refleksi pembelajaran dan supervisi klinis antar rekan sejawat belum berjalan berkala dan terstruktur.',
+      programName: 'Optimalisasi Komunitas Belajar (Kombel) Guru Intra-Satuan Pendidikan',
+      activityName: 'Diseminasi Berbagi Praktik Baik Pembelajaran Berdiferensiasi & Telaah Modul Ajar di Kombel',
+      arkasCode: '02.02.04',
+      targetIndicator: 'Pertemuan Kombel rutin dwimingguan; 100% guru menyusun asesmen formatif berdiferensiasi.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Ketua Komunitas Belajar Guru',
+    },
+    'D.4': {
+      rootCause: 'Mekanisme pencegahan dan kanal pelaporan perundungan serta kekerasan belum tersosialisasi menyeluruh.',
+      programName: 'Program Pencegahan dan Penanganan Kekerasan di Lingkungan Satuan Pendidikan (PPKSP)',
+      activityName: 'Penguatan Kapasitas TPPK Satuan Pendidikan & Kampanye Terpadu Sekolah Ramah Anak',
+      arkasCode: '02.06.01',
+      targetIndicator: 'Nol kasus perundungan; tersedianya kotak curhat aman dan SOP penanganan PPKSP aktif.',
+      defaultBudget: 1500000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW1', 'TW3'],
+      pic: 'Tim Pencegahan & Penanganan Kekerasan (TPPK)',
+    },
+    'D.8': {
+      rootCause: 'Minimnya ruang perjumpaan lintas budaya dan kesadaran toleransi keberagaman sosial di sekolah.',
+      programName: 'Program Penguatan Kebinekaan Global & Toleransi Inklusif',
+      activityName: 'Pekan Festival Kebinekaan: Busana Adat Nusantara, Kuliner Tradisional, dan Dialog Inklusif',
+      arkasCode: '03.04.05',
+      targetIndicator: 'Indeks iklim kebinekaan stabil pada predikat Sangat Baik (>85.0); kesadaran toleransi 100%.',
+      defaultBudget: 2000000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW3'],
+      pic: 'Guru PPKn & Kesiswaan',
+    },
+    'D.10': {
+      rootCause: 'Pendidik belum terlatih menyusun modifikasi kurikulum individual bagi peserta didik berkebutuhan khusus.',
+      programName: 'Program Peningkatan Layanan Pendidikan Inklusif & Ramah Disabilitas',
+      activityName: 'Bimtek Identifikasi Asesmen ABK & Pengadaan Media Pembelajaran Taktil / Visual Ramah Anak',
+      arkasCode: '02.04.05',
+      targetIndicator: 'Tersusunnya rencana pembelajaran individual (PPI) untuk seluruh anak disabilitas & sarana ramah anak.',
+      defaultBudget: 2500000,
+      defaultSource: 'BOS Reguler',
+      timeline: ['TW2', 'TW3'],
+      pic: 'Guru Pendamping Khusus & Waka Kesiswaan',
+    },
+  };
+
+  let p1Count = 0;
+  let p2Count = 0;
+  let totalBudget = 0;
+  let nonCostCount = 0;
+
+  for (const ind of indicators) {
+    const blueprint = blueprintMap[ind.code] || {
+      rootCause: `Analisis indikator ${ind.name} menunjukkan perlunya peningkatan strategi pengelolaan dan pembelajaran.`,
+      programName: `Peningkatan Kualitas dan Ketercapaian Indikator ${ind.name}`,
+      activityName: `Workshop Penyusunan Program Pembenahan Indikator ${ind.code}`,
+      arkasCode: '02.04.09',
+      targetIndicator: `Peningkatan capaian indikator ${ind.code} minimal +3.0 poin pada evaluasi berikutnya.`,
+      defaultBudget: ind.score < 70 ? 3000000 : 1500000,
+      defaultSource: ind.score < 70 ? 'BOS Reguler' : 'Non-Biaya',
+      timeline: ['TW1', 'TW2'],
+      pic: 'Tim Pengembang Kurikulum',
+    };
+
+    let priorityLevel: RktActionItem['priorityLevel'] = 'Pemeliharaan Mutu (P3)';
+    const scoreCategory: 'Baik' | 'Sedang' | 'Kurang' =
+      ind.score >= 70 ? 'Baik' : ind.score >= 55 ? 'Sedang' : 'Kurang';
+
+    if (ind.score < 70 || ind.label === 'Kurang' || ind.label === 'Sedang') {
+      priorityLevel = 'Prioritas Utama (P1)';
+      p1Count += 1;
+      priorityIndicators.push(`${ind.code} ${ind.name} (${ind.score})`);
+    } else if (ind.score < 80) {
+      priorityLevel = 'Prioritas Lanjutan (P2)';
+      p2Count += 1;
+    }
+
+    const budget = blueprint.defaultBudget;
+    totalBudget += budget;
+    if (budget === 0 || blueprint.defaultSource === 'Non-Biaya') {
+      nonCostCount += 1;
+    }
+
+    items.push({
+      id: `rkt-item-${ind.code.replace('.', '_')}-${Date.now()}`,
+      raporCode: ind.code,
+      raporName: ind.name,
+      currentScore: ind.score,
+      category: scoreCategory,
+      priorityLevel,
+      rootCause: blueprint.rootCause,
+      programName: blueprint.programName,
+      activityName: blueprint.activityName,
+      arkasCode: blueprint.arkasCode,
+      targetIndicator: blueprint.targetIndicator,
+      estimatedBudget: budget,
+      fundingSource: blueprint.defaultSource,
+      quarterTimeline: blueprint.timeline,
+      personInCharge: blueprint.pic,
+      notes: `Dihasilkan otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`,
+    });
+  }
+
+  // Sort: P1 first, then P2, then P3
+  items.sort((a, b) => {
+    const priorityWeight: Record<string, number> = {
+      'Prioritas Utama (P1)': 1,
+      'Prioritas Lanjutan (P2)': 2,
+      'Pemeliharaan Mutu (P3)': 3,
+    };
+    return (priorityWeight[a.priorityLevel] || 3) - (priorityWeight[b.priorityLevel] || 3);
+  });
+
+  return {
+    title: `Rencana Kegiatan Tahunan (RKT) ${schoolInfo.name} Tahun ${academicYear}`,
+    academicYear,
+    generatedAt: new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }),
+    sourceNpsn: schoolInfo.npsn,
+    schoolName: schoolInfo.name,
+    summary: {
+      totalPrograms: items.length,
+      totalBudget,
+      nonCostCount,
+      p1Count,
+      p2Count,
+      priorityIndicators,
+    },
+    items,
+  };
+}
+
+

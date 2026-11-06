@@ -180,7 +180,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <p>Mengetahui,</p>
               <p className="font-bold">Pengawas Pembina / Auditor Mutu</p>
               <div className="h-16"></div>
-              <p className="font-bold underline">Drs. H. Bambang Irawan, M.Pd.</p>
+              <p className="font-bold underline">{school.supervisor}</p>
               <p className="text-[10px] text-slate-500">NIP. 19680415 199303 1 004</p>
             </div>
 
