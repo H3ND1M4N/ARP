@@ -1,0 +1,6 @@
+{
+  "name": "SI-MANTAP BBPMP Jawa Timur",
+  "description": "Sistem Informasi Manajemen Peta Mutu Pendidikan Provinsi Jawa Timur (SI-MANTAP v.2.0) - Portal Pemetaan 8 Standar Mutu Pendidikan, Rapor Pendidikan, Unggah RKT, dan Analisis Rekomendasi Berbasis Data dengan Gemini Thinking AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
