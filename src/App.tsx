@@ -22,7 +22,12 @@ import {
   ArkasRecommendation,
   RktDocument,
 } from './data/simantapData';
-import { calculateOverallSnpScore, syncSnpScoresFromRapor } from './utils/petaMutuMath';
+import {
+  calculateOverallSnpScore,
+  syncSnpScoresFromRapor,
+  generateRktFromRapor,
+  RktActionItem,
+} from './utils/petaMutuMath';
 import { HeaderNav } from './components/HeaderNav';
 import { SchoolHeaderCard } from './components/SchoolHeaderCard';
 import { RadarChart } from './components/RadarChart';
@@ -33,6 +38,7 @@ import { RootCauseTab } from './components/RootCauseTab';
 import { ArkasTab } from './components/ArkasTab';
 import { PenyesuaianAnggaranTab } from './components/PenyesuaianAnggaranTab';
 import { RktUploadTab } from './components/RktUploadTab';
+import { RktOfficialOutputTab } from './components/RktOfficialOutputTab';
 import { AiThinkingAssistantTab } from './components/AiThinkingAssistantTab';
 import { PrintReportModal } from './components/PrintReportModal';
 import { SingleDoorLogin, ArpSession } from './components/SingleDoorLogin';
@@ -45,6 +51,7 @@ export type ActiveTab =
   | 'arkas'
   | 'penyesuaian-anggaran'
   | 'rkt'
+  | 'rkt-output'
   | 'ai-thinking';
 
 const AUTH_STORAGE_KEY = 'arp_single_door_user';
@@ -78,7 +85,10 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('snp');
   const [selectedYear, setSelectedYear] = useState<'2026' | '2025' | '2024'>('2026');
-  const [rktSubView, setRktSubView] = useState<'generator' | 'upload'>('generator');
+  const [rktSubView, setRktSubView] = useState<'generator' | 'output' | 'upload'>('generator');
+  const [rktItems, setRktItems] = useState<RktActionItem[]>(() =>
+    generateRktFromRapor(DEFAULT_RAPOR_INDICATORS, DEFAULT_SCHOOL, '2026/2027').items
+  );
 
   // Print Modal
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -109,30 +119,31 @@ export default function App() {
     _releaseYear: string,
     schoolUpdates?: Partial<SchoolProfile>
   ) => {
+    const nextSchool = schoolUpdates ? { ...currentSchool, ...schoolUpdates } : currentSchool;
     setRaporIndicators(newIndicators);
     if (schoolUpdates) {
-      setCurrentSchool((prev) => ({
-        ...prev,
-        ...schoolUpdates,
-      }));
+      setCurrentSchool(nextSchool);
     }
     setSnpStandards((prev) => syncSnpScoresFromRapor(prev, newIndicators));
+    setRktItems(generateRktFromRapor(newIndicators, nextSchool, '2026/2027').items);
   };
 
   const handleOpenRktGenerator = (
     customIndicators?: RaporIndicator[],
     schoolUpdates?: Partial<SchoolProfile>
   ) => {
+    const nextIndicators =
+      customIndicators && customIndicators.length > 0 ? customIndicators : raporIndicators;
+    const nextSchool = schoolUpdates ? { ...currentSchool, ...schoolUpdates } : currentSchool;
+
     if (customIndicators && customIndicators.length > 0) {
       setRaporIndicators(customIndicators);
       setSnpStandards((prev) => syncSnpScoresFromRapor(prev, customIndicators));
     }
     if (schoolUpdates) {
-      setCurrentSchool((prev) => ({
-        ...prev,
-        ...schoolUpdates,
-      }));
+      setCurrentSchool(nextSchool);
     }
+    setRktItems(generateRktFromRapor(nextIndicators, nextSchool, '2026/2027').items);
     setRktSubView('generator');
     setActiveTab('rkt');
   };
@@ -303,6 +314,18 @@ export default function App() {
           >
             <UploadCloud className="w-4 h-4 text-indigo-400" />
             <span>Pembuatan RKT & Verifikasi</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('rkt-output')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition ${
+              activeTab === 'rkt-output'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-emerald-800 hover:text-emerald-900 hover:bg-emerald-50 border border-emerald-200'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+            <span>Hasil Output RKT</span>
           </button>
 
           <button
@@ -481,11 +504,24 @@ export default function App() {
             documents={rktDocuments}
             school={currentSchool}
             indicators={raporIndicators}
+            rktItems={rktItems}
+            onRktItemsChange={setRktItems}
+            onOpenOfficialOutput={() => setActiveTab('rkt-output')}
             onUploadNewDocument={handleUploadRkt}
             onUpdateValidationStatus={handleUpdateRktValidation}
             onTriggerAiRefinement={handleTriggerAiFromOtherTab}
             activeSubView={rktSubView}
             onChangeSubView={setRktSubView}
+          />
+        )}
+
+        {/* Tab 5.5: Hasil Output RKT Resmi (Format 9 Kolom Download Excel) */}
+        {activeTab === 'rkt-output' && (
+          <RktOfficialOutputTab
+            school={currentSchool}
+            indicators={raporIndicators}
+            rktItems={rktItems}
+            academicYear="2026/2027"
           />
         )}
 

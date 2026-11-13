@@ -31,6 +31,9 @@ interface RktGeneratorWorkbenchProps {
   school: SchoolProfile;
   indicators: RaporIndicator[];
   academicYear?: string;
+  externalItems?: RktActionItem[];
+  onItemsChange?: (items: RktActionItem[]) => void;
+  onOpenOfficialOutput?: () => void;
   onSaveToDocuments: (doc: Omit<RktDocument, 'id'>) => void;
   onNavigateToDocuments?: () => void;
   onTriggerAiRefinement?: (prompt: string) => void;
@@ -40,6 +43,9 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
   school,
   indicators,
   academicYear = '2026/2027',
+  externalItems,
+  onItemsChange,
+  onOpenOfficialOutput,
   onSaveToDocuments,
   onNavigateToDocuments,
   onTriggerAiRefinement,
@@ -49,11 +55,24 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
     return generateRktFromRapor(indicators, school, academicYear);
   }, [indicators, school, academicYear]);
 
-  const [items, setItems] = useState<RktActionItem[]>(initialGenerated.items);
+  const [internalItems, setInternalItems] = useState<RktActionItem[]>(initialGenerated.items);
 
   useEffect(() => {
-    setItems(initialGenerated.items);
-  }, [initialGenerated]);
+    if (!externalItems) {
+      setInternalItems(initialGenerated.items);
+    }
+  }, [initialGenerated, externalItems]);
+
+  const items = externalItems ?? internalItems;
+  const setItems: React.Dispatch<React.SetStateAction<RktActionItem[]>> = (updater) => {
+    const next = typeof updater === 'function' ? updater(items) : updater;
+    if (onItemsChange) {
+      onItemsChange(next);
+    }
+    if (!externalItems) {
+      setInternalItems(next);
+    }
+  };
 
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>('all');
   const [selectedQuarterFilter, setSelectedQuarterFilter] = useState<string>('all');
@@ -344,18 +363,30 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenOfficialOutput && (
+            <button
+              type="button"
+              onClick={onOpenOfficialOutput}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs whitespace-nowrap"
+              title="Buka tampilan Hasil Output RKT 9 kolom & Download Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Hasil Output RKT (.xlsx)</span>
+            </button>
+          )}
+
           <button
             onClick={handleExportCsv}
-            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition border border-slate-700 shadow-xs"
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition border border-slate-700 shadow-xs whitespace-nowrap"
             title="Unduh berkas spreadsheet CSV/Excel"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Ekspor Excel (.csv)</span>
+            <span>Ekspor CSV</span>
           </button>
 
           <button
             onClick={handlePrintMatrix}
-            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition border border-slate-700 shadow-xs"
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition border border-slate-700 shadow-xs whitespace-nowrap"
             title="Cetak matriks dokumen RKT"
           >
             <Printer className="w-3.5 h-3.5 text-blue-400" />

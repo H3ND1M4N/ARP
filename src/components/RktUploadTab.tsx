@@ -14,12 +14,17 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { RktDocument, SchoolProfile, RaporIndicator } from '../data/simantapData';
+import { RktActionItem } from '../utils/petaMutuMath';
 import { RktGeneratorWorkbench } from './RktGeneratorWorkbench';
+import { RktOfficialOutputTab } from './RktOfficialOutputTab';
 
 interface RktUploadTabProps {
   documents: RktDocument[];
   school: SchoolProfile;
   indicators: RaporIndicator[];
+  rktItems?: RktActionItem[];
+  onRktItemsChange?: (items: RktActionItem[]) => void;
+  onOpenOfficialOutput?: () => void;
   onUploadNewDocument: (doc: Omit<RktDocument, 'id'>) => void;
   onUpdateValidationStatus: (
     id: string,
@@ -27,23 +32,26 @@ interface RktUploadTabProps {
     notes: string
   ) => void;
   onTriggerAiRefinement?: (prompt: string) => void;
-  activeSubView?: 'generator' | 'upload';
-  onChangeSubView?: (view: 'generator' | 'upload') => void;
+  activeSubView?: 'generator' | 'output' | 'upload';
+  onChangeSubView?: (view: 'generator' | 'output' | 'upload') => void;
 }
 
 export const RktUploadTab: React.FC<RktUploadTabProps> = ({
   documents,
   school,
   indicators,
+  rktItems,
+  onRktItemsChange,
+  onOpenOfficialOutput,
   onUploadNewDocument,
   onUpdateValidationStatus,
   onTriggerAiRefinement,
   activeSubView,
   onChangeSubView,
 }) => {
-  const [internalSubView, setInternalSubView] = useState<'generator' | 'upload'>('generator');
+  const [internalSubView, setInternalSubView] = useState<'generator' | 'output' | 'upload'>('generator');
   const subView = activeSubView ?? internalSubView;
-  const setSubView = (v: 'generator' | 'upload') => {
+  const setSubView = (v: 'generator' | 'output' | 'upload') => {
     if (onChangeSubView) onChangeSubView(v);
     setInternalSubView(v);
   };
@@ -113,8 +121,21 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
 
           <button
             type="button"
+            onClick={() => setSubView('output')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition whitespace-nowrap ${
+              subView === 'output'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <FileText className="w-4 h-4 text-emerald-400" />
+            <span>Hasil Output RKT (Format 9 Kolom)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setSubView('upload')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition whitespace-nowrap ${
               subView === 'upload'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -135,9 +156,19 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
           school={school}
           indicators={indicators}
           academicYear="2026/2027"
+          externalItems={rktItems}
+          onItemsChange={onRktItemsChange}
+          onOpenOfficialOutput={onOpenOfficialOutput ?? (() => setSubView('output'))}
           onSaveToDocuments={onUploadNewDocument}
           onNavigateToDocuments={() => setSubView('upload')}
           onTriggerAiRefinement={onTriggerAiRefinement}
+        />
+      ) : subView === 'output' ? (
+        <RktOfficialOutputTab
+          school={school}
+          indicators={indicators}
+          rktItems={rktItems ?? []}
+          academicYear="2026/2027"
         />
       ) : (
         <>
