@@ -35,7 +35,7 @@ import { PenyesuaianAnggaranTab } from './components/PenyesuaianAnggaranTab';
 import { RktUploadTab } from './components/RktUploadTab';
 import { AiThinkingAssistantTab } from './components/AiThinkingAssistantTab';
 import { PrintReportModal } from './components/PrintReportModal';
-import { SingleDoorLogin } from './components/SingleDoorLogin';
+import { SingleDoorLogin, ArpSession } from './components/SingleDoorLogin';
 
 export type ActiveTab =
   | 'snp'
@@ -50,10 +50,21 @@ export type ActiveTab =
 const AUTH_STORAGE_KEY = 'arp_single_door_user';
 
 export default function App() {
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
+  const [session, setSession] = useState<ArpSession | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
-      return window.localStorage.getItem(AUTH_STORAGE_KEY);
+      const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return null;
+      if (raw.startsWith('{')) {
+        const parsed = JSON.parse(raw) as Partial<ArpSession>;
+        if (parsed.username) {
+          return {
+            username: parsed.username,
+            accessRole: parsed.accessRole || 'Admin & Peserta',
+          };
+        }
+      }
+      return { username: raw, accessRole: 'Admin & Peserta' };
     } catch {
       return null;
     }
@@ -75,17 +86,17 @@ export default function App() {
   // AI Prompt preset query trigger
   const [aiFocusPrompt, setAiFocusPrompt] = useState<string>('');
 
-  const handleLogin = (username: string) => {
-    setLoggedInUser(username);
+  const handleLogin = (nextSession: ArpSession) => {
+    setSession(nextSession);
     try {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, username);
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
     } catch {
       // ignore storage errors
     }
   };
 
   const handleLogout = () => {
-    setLoggedInUser(null);
+    setSession(null);
     try {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {
@@ -126,8 +137,8 @@ export default function App() {
     setActiveTab('rkt');
   };
 
-  // Single-door general login gate (tanpa pembedaan peran)
-  if (!loggedInUser) {
+  // Unified single-door login gate (Admin & Peserta)
+  if (!session) {
     return <SingleDoorLogin onLogin={handleLogin} />;
   }
 
@@ -191,7 +202,7 @@ export default function App() {
       {/* Header Nav */}
       <HeaderNav
         currentSchool={currentSchool}
-        loggedInUser={loggedInUser}
+        session={session}
         onOpenUploadRapor={() => setActiveTab('upload-rapor')}
         onPrintReport={() => setIsPrintModalOpen(true)}
         onLogout={handleLogout}

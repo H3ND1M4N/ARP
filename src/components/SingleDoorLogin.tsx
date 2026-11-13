@@ -10,8 +10,13 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+export interface ArpSession {
+  username: string;
+  accessRole: 'Admin & Peserta' | 'Admin' | 'Peserta';
+}
+
 interface SingleDoorLoginProps {
-  onLogin: (username: string) => void;
+  onLogin: (session: ArpSession) => void;
 }
 
 export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => {
@@ -32,39 +37,40 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
       return;
     }
     setErrorMsg(null);
-    onLogin(cleanUser);
+    onLogin({
+      username: cleanUser,
+      accessRole: 'Admin & Peserta',
+    });
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-between text-slate-100 font-sans relative overflow-hidden">
-      {/* Subtle architectural background accents */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_45%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.12),transparent_45%)] pointer-events-none" />
+      {/* Subtle architectural background accent */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.10),transparent_45%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.10),transparent_45%)] pointer-events-none" />
 
       {/* Top identity strip */}
       <div className="relative z-10 border-b border-slate-800/80 bg-slate-950/90 px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-semibold text-amber-400">ARP • Aplikasi Rekomendasi & Peta Mutu Pendidikan</span>
-        </div>
+        <span className="font-semibold text-amber-400">
+          ARP · Aplikasi Rekomendasi & Peta Mutu Pendidikan
+        </span>
         <span className="hidden sm:inline text-slate-400">
           Dikembangkan oleh <strong className="text-amber-300">Hendy Firmansyah</strong>
         </span>
       </div>
 
-      {/* Main single-door login card */}
+      {/* Main unified login card */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md bg-slate-900/95 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-          <div className="p-6 sm:p-8 border-b border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800/80">
+          <div className="p-6 sm:p-8 border-b border-slate-800 bg-slate-900">
             <div className="flex items-center gap-3.5 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-950/50 border border-amber-400/30 shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-950/40 border border-amber-400/30 shrink-0">
                 <Building2 className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
                   <span className="text-2xl font-black tracking-tight text-amber-400">ARP</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Login Satu Pintu
-                  </span>
+                  <span aria-hidden="true" className="text-slate-600">·</span>
+                  <span className="font-semibold text-emerald-300">Satu Login Admin & Peserta</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Aplikasi Rekomendasi & Peta Mutu Sekolah
@@ -72,11 +78,11 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
               </div>
             </div>
 
-            <h1 className="text-lg font-bold text-white">
-              Masuk ke Ruang Kerja Umum ARP
+            <h1 className="text-lg font-bold text-white leading-snug">
+              Masuk Satu Pintu (Admin & Peserta)
             </h1>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Akses terpadu satu pintu untuk seluruh pengguna tanpa pembedaan hak akses. Data sekolah bersumber langsung dari berkas Rapor Pendidikan yang diunggah.
+              Satu pintu login terpadu untuk Admin maupun Peserta. Seluruh modul analisis Rapor Pendidikan, RKT, dan laporan mutu terbuka dalam satu akses bersama.
             </p>
           </div>
 
@@ -124,7 +130,7 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
                   aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -134,7 +140,7 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
 
             <button
               type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 transition cursor-pointer"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap"
             >
               <LogIn className="w-4 h-4" />
               <span>Masuk Aplikasi ARP</span>
@@ -143,7 +149,7 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
             <div className="pt-3 border-t border-slate-800 flex items-center gap-2 text-[11px] text-slate-400">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>
-                Login satu pintu umum: semua pengguna memperoleh akses penuh untuk unggah Rapor Pendidikan, penyusunan RKT, dan cetak laporan.
+                Satu login terpadu untuk Admin & Peserta — data sekolah bersumber langsung dari berkas Rapor Pendidikan yang diunggah.
               </span>
             </div>
           </form>
@@ -152,7 +158,7 @@ export const SingleDoorLogin: React.FC<SingleDoorLoginProps> = ({ onLogin }) => 
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-slate-800/80 px-4 py-4 text-center text-[11px] text-slate-500">
-        Aplikasi Mandiri ARP • Karya <span className="text-amber-400 font-semibold">Hendy Firmansyah</span> (hendy.HF@gmail.com)
+        Aplikasi Mandiri ARP · Karya <span className="text-amber-400 font-semibold">Hendy Firmansyah</span> (hendy.HF@gmail.com)
       </footer>
     </div>
   );

@@ -9,10 +9,11 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { SchoolProfile } from '../data/simantapData';
+import { ArpSession } from './SingleDoorLogin';
 
 interface HeaderNavProps {
   currentSchool: SchoolProfile;
-  loggedInUser: string;
+  session: ArpSession;
   onOpenUploadRapor: () => void;
   onPrintReport: () => void;
   onLogout: () => void;
@@ -20,7 +21,7 @@ interface HeaderNavProps {
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
   currentSchool,
-  loggedInUser,
+  session,
   onOpenUploadRapor,
   onPrintReport,
   onLogout,
@@ -30,8 +31,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
       {/* Top Brand Bar */}
       <div className="bg-slate-950 px-4 py-1.5 border-b border-slate-800/60 text-xs text-slate-300 flex flex-wrap justify-between items-center gap-2">
         <div className="flex items-center space-x-3">
-          <span className="inline-flex items-center gap-1.5 font-medium text-amber-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="font-medium text-amber-400">
             Sistem Peta Mutu Sekolah Mandiri
           </span>
           <span className="text-slate-600 hidden sm:inline">|</span>
@@ -41,7 +41,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         </div>
         <div className="text-slate-400 text-[11px] flex items-center gap-2 font-mono">
           <UserCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Pengguna: <strong className="text-slate-200">{loggedInUser}</strong></span>
+          <span>
+            <strong className="text-amber-300">{session.accessRole}</strong>
+            <span aria-hidden="true"> · </span>
+            <strong className="text-slate-200">{session.username}</strong>
+          </span>
         </div>
       </div>
 
