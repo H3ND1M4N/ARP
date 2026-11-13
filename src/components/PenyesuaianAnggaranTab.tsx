@@ -365,23 +365,28 @@ export const PenyesuaianAnggaranTab: React.FC<PenyesuaianAnggaranTabProps> = ({
             </div>
           </div>
 
-          {/* Section 2: Non-Cost Initiatives (Non-Biaya) */}
-          <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-200 text-xs space-y-2">
-            <div className="flex items-center justify-between">
+          {/* Section 2: Non-Cost Initiatives (Non-ARKAS / Tidak Berbayar) */}
+          <div className="p-4 bg-teal-50/70 rounded-xl border border-teal-200 text-xs space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-purple-700" />
-                <h5 className="font-bold text-purple-950">
-                  Inisiatif Bebas Anggaran (Rp 0 - Tanpa Membebani BOS):
+                <Coins className="w-4 h-4 text-teal-700" />
+                <h5 className="font-bold text-teal-950">
+                  Kegiatan Tidak Berbayar / Non-ARKAS (Rp 0 - Tanpa Membebani BOS):
                 </h5>
               </div>
-              <span className="px-2 py-0.5 bg-purple-200/80 text-purple-900 font-bold rounded text-[10px]">
-                Solusi Hemat Anggaran
+              <span className="px-2 py-0.5 bg-teal-200/80 text-teal-900 font-bold rounded text-[10px]">
+                {programs.filter((p) => p.isNonCost).length} Program Non-ARKAS
               </span>
             </div>
-            <p className="text-slate-700 leading-relaxed text-[11px]">
-              • <strong>Optimalisasi Kombel "Argomulyo Hebat":</strong> Pertemuan rutin 2 pekan sekali guru antar kelas untuk telaah modul ajar numerasi (Rp 0).<br />
-              • <strong>Gerakan Kamis Membaca 15 Menit:</strong> Penguatan budaya literasi dengan bahan bacaan kearifan lokal pertanian Gunungsari (Rp 0).
-            </p>
+            <ul className="text-slate-700 leading-relaxed text-[11px] space-y-1 list-disc pl-4">
+              {programs
+                .filter((p) => p.isNonCost)
+                .map((p) => (
+                  <li key={p.id}>
+                    <strong>{p.name}</strong> ({p.code} · Rp 0)
+                  </li>
+                ))}
+            </ul>
           </div>
 
           {/* Section 3: Conditional Guidance (Deficit Reductions vs Surplus Expansions) */}

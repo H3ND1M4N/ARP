@@ -475,6 +475,7 @@ export interface RktActionItem {
   targetIndicator: string;
   estimatedBudget: number;
   fundingSource: 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya' | 'APBD';
+  isNonArkas?: boolean;
   quarterTimeline: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
   personInCharge: string;
   notes?: string;
@@ -506,7 +507,7 @@ export interface MinimalRaporIndicator {
 
 /**
  * Generates structured RKT (Rencana Kerja Tahunan) based on uploaded/active Rapor Pendidikan indicators.
- * Conforms to authentic Kemendikdasmen Perencanaan Berbasis Data (PBD) guidelines and ARKAS nomenclature.
+ * Produces both paid ARKAS activities and unpaid Non-ARKAS (Rp 0) activities conforming to PBD guidelines.
  */
 export function generateRktFromRapor(
   indicators: MinimalRaporIndicator[],
@@ -516,20 +517,20 @@ export function generateRktFromRapor(
   const items: RktActionItem[] = [];
   const priorityIndicators: string[] = [];
 
-  const blueprintMap: Record<
-    string,
-    {
-      rootCause: string;
-      programName: string;
-      activityName: string;
-      arkasCode: string;
-      targetIndicator: string;
-      defaultBudget: number;
-      defaultSource: 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya';
-      timeline: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
-      pic: string;
-    }
-  > = {
+  type BlueprintEntry = {
+    rootCause: string;
+    programName: string;
+    activityName: string;
+    arkasCode: string;
+    targetIndicator: string;
+    defaultBudget: number;
+    defaultSource: 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya';
+    isNonArkas?: boolean;
+    timeline: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
+    pic: string;
+  };
+
+  const blueprintMap: Record<string, BlueprintEntry> = {
     'A.1': {
       rootCause: 'Rendahnya minat baca kritis & minim ragam buku non-teks ramah anak di perpustakaan/sudut baca kelas.',
       programName: 'Program Penguatan Gerakan Literasi Sekolah (GLS)',
@@ -538,6 +539,7 @@ export function generateRktFromRapor(
       targetIndicator: '100% kelas memiliki pojok baca aktif; skor literasi naik minimal +4.5 poin.',
       defaultBudget: 4500000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW1', 'TW2'],
       pic: 'Koordinator Literasi & Guru Kelas',
     },
@@ -546,20 +548,22 @@ export function generateRktFromRapor(
       programName: 'Program Penguatan Kompetensi Pendidik Bidang Numerasi & Penalaran Logika',
       activityName: 'Pelatihan Bimtek Modul Ajar Numerasi & Pengadaan Kit Peraga Matematika Kontekstual',
       arkasCode: '02.04.03',
-      targetIndicator: 'Seluruh guru kelas 1-6 menerapkan modul numerasi PMM; skor numerasi mencapai predikat Baik (>=72.0).',
+      targetIndicator: 'Seluruh guru kelas menerapkan modul numerasi PMM; skor numerasi mencapai predikat Baik (>=72.0).',
       defaultBudget: 6500000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW1', 'TW2', 'TW3'],
       pic: 'Waka Kurikulum & Tim Pengembang',
     },
     'A.3': {
       rootCause: 'Penanaman profil Pelajar Pancasila belum terinternalisasi maksimal dalam pembiasaan dan iklim kelas.',
       programName: 'Program Penguatan Karakter & Gelar Karya Projek Penguatan Profil Pelajar Pancasila (P5)',
-      activityName: 'Penyelenggaraan Gelar Karya P5 Kewirausahaan & Budaya Kearifan Lokal Kota Batu',
+      activityName: 'Penyelenggaraan Gelar Karya P5 Kewirausahaan & Budaya Kearifan Lokal Daerah',
       arkasCode: '03.04.02',
       targetIndicator: '100% siswa aktif berpartisipasi dalam pameran P5; pembiasaan gotong royong dan kemandirian meningkat.',
       defaultBudget: 3500000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW2', 'TW4'],
       pic: 'Koordinator P5 & Pembina Kesiswaan',
     },
@@ -567,21 +571,23 @@ export function generateRktFromRapor(
       rootCause: 'Refleksi pembelajaran dan supervisi klinis antar rekan sejawat belum berjalan berkala dan terstruktur.',
       programName: 'Optimalisasi Komunitas Belajar (Kombel) Guru Intra-Satuan Pendidikan',
       activityName: 'Diseminasi Berbagi Praktik Baik Pembelajaran Berdiferensiasi & Telaah Modul Ajar di Kombel',
-      arkasCode: '02.02.04',
-      targetIndicator: 'Pertemuan Kombel rutin dwimingguan; 100% guru menyusun asesmen formatif berdiferensiasi.',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Pertemuan Kombel rutin dwimingguan tanpa biaya; 100% guru menyusun asesmen formatif berdiferensiasi.',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
+      isNonArkas: true,
       timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Ketua Komunitas Belajar Guru',
     },
     'D.4': {
       rootCause: 'Mekanisme pencegahan dan kanal pelaporan perundungan serta kekerasan belum tersosialisasi menyeluruh.',
       programName: 'Program Pencegahan dan Penanganan Kekerasan di Lingkungan Satuan Pendidikan (PPKSP)',
-      activityName: 'Penguatan Kapasitas TPPK Satuan Pendidikan & Kampanye Terpadu Sekolah Ramah Anak',
+      activityName: 'Penguatan Kapasitas TPPK Satuan Pendidikan & Pengadaan Media Kampanye Sekolah Ramah Anak',
       arkasCode: '02.06.01',
       targetIndicator: 'Nol kasus perundungan; tersedianya kotak curhat aman dan SOP penanganan PPKSP aktif.',
       defaultBudget: 1500000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW1', 'TW3'],
       pic: 'Tim Pencegahan & Penanganan Kekerasan (TPPK)',
     },
@@ -593,6 +599,7 @@ export function generateRktFromRapor(
       targetIndicator: 'Indeks iklim kebinekaan stabil pada predikat Sangat Baik (>85.0); kesadaran toleransi 100%.',
       defaultBudget: 2000000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW3'],
       pic: 'Guru PPKn & Kesiswaan',
     },
@@ -604,8 +611,73 @@ export function generateRktFromRapor(
       targetIndicator: 'Tersusunnya rencana pembelajaran individual (PPI) untuk seluruh anak disabilitas & sarana ramah anak.',
       defaultBudget: 2500000,
       defaultSource: 'BOS Reguler',
+      isNonArkas: false,
       timeline: ['TW2', 'TW3'],
       pic: 'Guru Pendamping Khusus & Waka Kesiswaan',
+    },
+  };
+
+  // Kegiatan Tidak Berbayar (Non-ARKAS) pendamping per indikator untuk pembiasaan & kolaborasi sekolah
+  const nonArkasBlueprintMap: Record<string, BlueprintEntry> = {
+    'A.1': {
+      rootCause: 'Kebiasaan membaca harian sebelum pembelajaran belum terjadwal konsisten di seluruh kelas.',
+      programName: 'Pembiasaan Literasi Sekolah Tanpa Biaya (Non-ARKAS)',
+      activityName: 'Gerakan Membaca Senyap 15 Menit Sebelum Jam Pelajaran & Tantangan Resensi Lisan Siswa',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: '100% rombel melaksanakan pembiasaan baca 15 menit setiap pagi tanpa beban anggaran.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Wali Kelas & Tim Literasi Sekolah',
+    },
+    'A.2': {
+      rootCause: 'Guru membutuhkan pendampingan sejawat berkelanjutan dalam merancang soal pemecahan masalah numerasi.',
+      programName: 'Pendampingan Sejawat & Belajar Mandiri PMM Numerasi (Non-ARKAS)',
+      activityName: 'Peer-Coaching Guru & Bedah Topik Numerasi Kontekstual pada Pertemuan Kombel Mingguan',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Minimal 12 sesi peer-coaching per tahun terlaksana secara swadaya dengan Rp 0.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Ketua Kombel & Guru Penggerak',
+    },
+    'A.3': {
+      rootCause: 'Penguatan karakter gotong royong dan disiplin positif perlu pembiasaan harian yang konsisten.',
+      programName: 'Pembiasaan Budaya Positif & Karakter Pelajar Pancasila (Non-ARKAS)',
+      activityName: 'Program Jumat Bersih Gotong Royong, Piket Kepemimpinan Siswa, dan Apresiasi Perilaku Baik',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Terlaksananya pembiasaan budaya positif mingguan di seluruh kelas dengan partisipasi 100% siswa.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Pembina Kesiswaan & Wali Kelas',
+    },
+    'D.4': {
+      rootCause: 'Pengawasan area rawan perundungan dan edukasi anti-kekerasan perlu keterlibatan rutin warga sekolah.',
+      programName: 'Satgas & Edukasi Pencegahan Perundungan Berbasis Pembiasaan (Non-ARKAS)',
+      activityName: 'Piket Pemantauan Lingkungan Ramah Anak & Sesi Refleksi Anti-Perundungan Saat Upacara/Apel',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Jadwal piket TPPK berjalan setiap pekan dan kesepakatan kelas anti-perundungan terpasang.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Satgas TPPK & Guru Piket',
+    },
+    'D.10': {
+      rootCause: 'Kolaborasi guru kelas, teman sebaya, dan orang tua ABK dapat dioptimalkan tanpa biaya tambahan.',
+      programName: 'Pendampingan Teman Sebaya & Forum Konsultasi Orang Tua Inklusif (Non-ARKAS)',
+      activityName: 'Penyusunan PPI Kolaboratif Bersama Orang Tua & Program Sahabat Inklusi Antar Siswa',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: '100% siswa berkebutuhan khusus memiliki pendamping sebaya dan catatan perkembangan bulanan.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Guru Kelas & Koordinator Inklusi',
     },
   };
 
@@ -613,16 +685,18 @@ export function generateRktFromRapor(
   let p2Count = 0;
   let totalBudget = 0;
   let nonCostCount = 0;
+  const timestamp = Date.now();
 
   for (const ind of indicators) {
     const blueprint = blueprintMap[ind.code] || {
       rootCause: `Analisis indikator ${ind.name} menunjukkan perlunya peningkatan strategi pengelolaan dan pembelajaran.`,
       programName: `Peningkatan Kualitas dan Ketercapaian Indikator ${ind.name}`,
       activityName: `Workshop Penyusunan Program Pembenahan Indikator ${ind.code}`,
-      arkasCode: '02.04.09',
+      arkasCode: ind.score < 70 ? '02.04.09' : 'NON-ARKAS',
       targetIndicator: `Peningkatan capaian indikator ${ind.code} minimal +3.0 poin pada evaluasi berikutnya.`,
-      defaultBudget: ind.score < 70 ? 3000000 : 1500000,
+      defaultBudget: ind.score < 70 ? 3000000 : 0,
       defaultSource: ind.score < 70 ? 'BOS Reguler' : 'Non-Biaya',
+      isNonArkas: ind.score >= 70,
       timeline: ['TW1', 'TW2'],
       pic: 'Tim Pengembang Kurikulum',
     };
@@ -641,13 +715,15 @@ export function generateRktFromRapor(
     }
 
     const budget = blueprint.defaultBudget;
+    const isNonArkasItem =
+      Boolean(blueprint.isNonArkas) || budget === 0 || blueprint.defaultSource === 'Non-Biaya';
     totalBudget += budget;
-    if (budget === 0 || blueprint.defaultSource === 'Non-Biaya') {
+    if (isNonArkasItem) {
       nonCostCount += 1;
     }
 
     items.push({
-      id: `rkt-item-${ind.code.replace('.', '_')}-${Date.now()}`,
+      id: `rkt-item-${ind.code.replace('.', '_')}-${timestamp}`,
       raporCode: ind.code,
       raporName: ind.name,
       currentScore: ind.score,
@@ -656,24 +732,60 @@ export function generateRktFromRapor(
       rootCause: blueprint.rootCause,
       programName: blueprint.programName,
       activityName: blueprint.activityName,
-      arkasCode: blueprint.arkasCode,
+      arkasCode: isNonArkasItem ? 'NON-ARKAS' : blueprint.arkasCode,
       targetIndicator: blueprint.targetIndicator,
       estimatedBudget: budget,
       fundingSource: blueprint.defaultSource,
+      isNonArkas: isNonArkasItem,
       quarterTimeline: blueprint.timeline,
       personInCharge: blueprint.pic,
-      notes: `Dihasilkan otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`,
+      notes: isNonArkasItem
+        ? `Kegiatan Non-ARKAS (Rp 0) otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`
+        : `Dihasilkan otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`,
     });
+
+    // Also add complementary unpaid Non-ARKAS activity when configured for the indicator
+    const nonArkasEntry = nonArkasBlueprintMap[ind.code];
+    if (nonArkasEntry) {
+      if (priorityLevel === 'Prioritas Utama (P1)') {
+        p1Count += 1;
+      } else if (priorityLevel === 'Prioritas Lanjutan (P2)') {
+        p2Count += 1;
+      }
+      nonCostCount += 1;
+
+      items.push({
+        id: `rkt-nonarkas-${ind.code.replace('.', '_')}-${timestamp}`,
+        raporCode: ind.code,
+        raporName: ind.name,
+        currentScore: ind.score,
+        category: scoreCategory,
+        priorityLevel,
+        rootCause: nonArkasEntry.rootCause,
+        programName: nonArkasEntry.programName,
+        activityName: nonArkasEntry.activityName,
+        arkasCode: 'NON-ARKAS',
+        targetIndicator: nonArkasEntry.targetIndicator,
+        estimatedBudget: 0,
+        fundingSource: 'Non-Biaya',
+        isNonArkas: true,
+        quarterTimeline: nonArkasEntry.timeline,
+        personInCharge: nonArkasEntry.pic,
+        notes: `Kegiatan Tidak Berbayar (Non-ARKAS / Rp 0) pendamping indikator ${ind.code}`,
+      });
+    }
   }
 
-  // Sort: P1 first, then P2, then P3
+  // Sort: P1 first, then P2, then P3 (and paid ARKAS before Non-ARKAS within same priority)
   items.sort((a, b) => {
     const priorityWeight: Record<string, number> = {
       'Prioritas Utama (P1)': 1,
       'Prioritas Lanjutan (P2)': 2,
       'Pemeliharaan Mutu (P3)': 3,
     };
-    return (priorityWeight[a.priorityLevel] || 3) - (priorityWeight[b.priorityLevel] || 3);
+    const pDiff = (priorityWeight[a.priorityLevel] || 3) - (priorityWeight[b.priorityLevel] || 3);
+    if (pDiff !== 0) return pDiff;
+    return Number(Boolean(a.isNonArkas)) - Number(Boolean(b.isNonArkas));
   });
 
   return {

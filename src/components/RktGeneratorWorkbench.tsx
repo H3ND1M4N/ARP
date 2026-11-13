@@ -57,6 +57,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
 
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>('all');
   const [selectedQuarterFilter, setSelectedQuarterFilter] = useState<string>('all');
+  const [selectedFundingTypeFilter, setSelectedFundingTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Editing state for an item
@@ -65,6 +66,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
 
   // Adding new custom item state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newIsNonArkas, setNewIsNonArkas] = useState(false);
   const [newItemData, setNewItemData] = useState({
     raporCode: 'A.2',
     raporName: 'Kemampuan Numerasi',
@@ -73,10 +75,10 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
     arkasCode: '02.04.03',
     targetIndicator: '',
     estimatedBudget: 2500000,
-    fundingSource: 'BOS Reguler' as const,
+    fundingSource: 'BOS Reguler' as 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya' | 'APBD',
     quarterTimeline: ['TW1', 'TW2'] as ('TW1' | 'TW2' | 'TW3' | 'TW4')[],
     personInCharge: 'Guru Kelas & Tim Numerasi',
-    priorityLevel: 'Prioritas Utama (P1)' as const,
+    priorityLevel: 'Prioritas Utama (P1)' as 'Prioritas Utama (P1)' | 'Prioritas Lanjutan (P2)' | 'Pemeliharaan Mutu (P3)',
   });
 
   // Success notice when saved to documents
@@ -91,7 +93,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
 
     for (const item of items) {
       totalBudget += item.estimatedBudget;
-      if (item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0) {
+      if (item.isNonArkas || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0) {
         nonCostCount += 1;
       }
       if (item.priorityLevel === 'Prioritas Utama (P1)') {
@@ -117,7 +119,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
         item.activityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.programName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.raporName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.arkasCode.includes(searchQuery);
+        item.arkasCode.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchPriority =
         selectedPriorityFilter === 'all' || item.priorityLevel === selectedPriorityFilter;
@@ -126,9 +128,16 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
         selectedQuarterFilter === 'all' ||
         item.quarterTimeline.includes(selectedQuarterFilter as any);
 
-      return matchSearch && matchPriority && matchQuarter;
+      const isItemNonArkas =
+        Boolean(item.isNonArkas) || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0;
+      const matchFundingType =
+        selectedFundingTypeFilter === 'all' ||
+        (selectedFundingTypeFilter === 'non-arkas' && isItemNonArkas) ||
+        (selectedFundingTypeFilter === 'arkas' && !isItemNonArkas);
+
+      return matchSearch && matchPriority && matchQuarter && matchFundingType;
     });
-  }, [items, searchQuery, selectedPriorityFilter, selectedQuarterFilter]);
+  }, [items, searchQuery, selectedPriorityFilter, selectedQuarterFilter, selectedFundingTypeFilter]);
 
   // Start editing row
   const handleStartEdit = (item: RktActionItem) => {
@@ -158,10 +167,37 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
     }
   };
 
+  const handleOpenAddModal = (asNonArkas: boolean) => {
+    setNewIsNonArkas(asNonArkas);
+    setNewItemData((prev) => ({
+      ...prev,
+      programName: asNonArkas
+        ? 'Pembiasaan & Kolaborasi Mutu Sekolah (Non-ARKAS)'
+        : 'Program Penguatan Numerasi Kelas Awal',
+      arkasCode: asNonArkas ? 'NON-ARKAS' : '02.04.03',
+      estimatedBudget: asNonArkas ? 0 : 2500000,
+      fundingSource: asNonArkas ? 'Non-Biaya' : 'BOS Reguler',
+    }));
+    setIsAddModalOpen(true);
+  };
+
+  const handleToggleNewNonArkas = (checked: boolean) => {
+    setNewIsNonArkas(checked);
+    setNewItemData((prev) => ({
+      ...prev,
+      arkasCode: checked ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '02.04.03' : prev.arkasCode,
+      estimatedBudget: checked ? 0 : prev.estimatedBudget === 0 ? 2500000 : prev.estimatedBudget,
+      fundingSource: checked ? 'Non-Biaya' : prev.fundingSource === 'Non-Biaya' ? 'BOS Reguler' : prev.fundingSource,
+    }));
+  };
+
   // Add new item
   const handleAddNewItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemData.activityName) return;
+
+    const isNonArkasItem =
+      newIsNonArkas || newItemData.fundingSource === 'Non-Biaya' || Number(newItemData.estimatedBudget) === 0;
 
     const newItem: RktActionItem = {
       id: `rkt-custom-${Date.now()}`,
@@ -170,20 +206,27 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       currentScore: 70,
       category: 'Sedang',
       priorityLevel: newItemData.priorityLevel,
-      rootCause: 'Kebutuhan pemenuhan program kerja strategis satuan pendidikan.',
+      rootCause: isNonArkasItem
+        ? 'Optimalisasi pembiasaan harian, supervisi, atau komunitas belajar tanpa membebani dana BOS.'
+        : 'Kebutuhan pemenuhan program kerja strategis satuan pendidikan.',
       programName: newItemData.programName,
       activityName: newItemData.activityName,
-      arkasCode: newItemData.arkasCode,
-      targetIndicator: newItemData.targetIndicator || 'Tercapainya target program kerja tepat waktu.',
-      estimatedBudget: Number(newItemData.estimatedBudget) || 0,
-      fundingSource: newItemData.fundingSource,
+      arkasCode: isNonArkasItem ? (newItemData.arkasCode.trim() || 'NON-ARKAS') : newItemData.arkasCode,
+      targetIndicator:
+        newItemData.targetIndicator || 'Tercapainya target program kerja tepat waktu.',
+      estimatedBudget: isNonArkasItem ? 0 : Number(newItemData.estimatedBudget) || 0,
+      fundingSource: isNonArkasItem ? 'Non-Biaya' : newItemData.fundingSource,
+      isNonArkas: isNonArkasItem,
       quarterTimeline: newItemData.quarterTimeline,
       personInCharge: newItemData.personInCharge,
-      notes: 'Program usulan tambahan tim penyusun RKT.',
+      notes: isNonArkasItem
+        ? 'Kegiatan Tidak Berbayar (Non-ARKAS / Rp 0) usulan tim penyusun RKT.'
+        : 'Program usulan tambahan tim penyusun RKT.',
     };
 
     setItems((prev) => [newItem, ...prev]);
     setIsAddModalOpen(false);
+    setNewIsNonArkas(false);
     setNewItemData({
       raporCode: 'A.2',
       raporName: 'Kemampuan Numerasi',
@@ -209,7 +252,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       fileSize: `${(stats.totalPrograms * 0.4 + 1.2).toFixed(1)} MB (PBD RKT)`,
       uploadedBy: `${school.principal || 'Kepala Sekolah'} (ARP Hendy Firmansyah)`,
       status: 'Menunggu Validasi',
-      supervisorNotes: `Dokumen RKT otomatis disusun dari hasil analisis Rapor Pendidikan terkini (${stats.totalPrograms} kegiatan terpetakan, alokasi Rp ${stats.totalBudget.toLocaleString('id-ID')}). Siap diverifikasi pengawas.`,
+      supervisorNotes: `Dokumen RKT otomatis disusun dari hasil analisis Rapor Pendidikan terkini (${stats.totalPrograms} kegiatan termasuk ${stats.nonCostCount} kegiatan Non-ARKAS tidak berbayar, alokasi berbayar Rp ${stats.totalBudget.toLocaleString('id-ID')}). Siap diverifikasi pengawas.`,
     });
 
     setSavedSuccessDocTitle(docTitle);
@@ -228,7 +271,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       'Akar Masalah (Refleksi)',
       'Program PBD',
       'Kegiatan RKT (Benahi)',
-      'Kode ARKAS',
+      'Kode ARKAS / Kategori',
       'Target Keberhasilan',
       'Jadwal Triwulan',
       'Estimasi Anggaran (Rp)',
@@ -236,21 +279,25 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       'Penanggung Jawab',
     ];
 
-    const rows = items.map((item, idx) => [
-      idx + 1,
-      `"${item.priorityLevel}"`,
-      `"${item.raporCode} ${item.raporName}"`,
-      item.currentScore,
-      `"${item.rootCause.replace(/"/g, '""')}"`,
-      `"${item.programName.replace(/"/g, '""')}"`,
-      `"${item.activityName.replace(/"/g, '""')}"`,
-      `"${item.arkasCode}"`,
-      `"${item.targetIndicator.replace(/"/g, '""')}"`,
-      `"${item.quarterTimeline.join(', ')}"`,
-      item.estimatedBudget,
-      `"${item.fundingSource}"`,
-      `"${item.personInCharge}"`,
-    ]);
+    const rows = items.map((item, idx) => {
+      const isNonArkasItem =
+        Boolean(item.isNonArkas) || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0;
+      return [
+        idx + 1,
+        `"${item.priorityLevel}"`,
+        `"${item.raporCode} ${item.raporName}"`,
+        item.currentScore,
+        `"${item.rootCause.replace(/"/g, '""')}"`,
+        `"${item.programName.replace(/"/g, '""')}"`,
+        `"${item.activityName.replace(/"/g, '""')}"`,
+        `"${isNonArkasItem ? 'NON-ARKAS' : item.arkasCode}"`,
+        `"${item.targetIndicator.replace(/"/g, '""')}"`,
+        `"${item.quarterTimeline.join(', ')}"`,
+        item.estimatedBudget,
+        `"${isNonArkasItem ? 'Non-Biaya (Non-ARKAS)' : item.fundingSource}"`,
+        `"${item.personInCharge}"`,
+      ];
+    });
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
@@ -407,12 +454,12 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold text-teal-700 block">
-              Non-Biaya / Swadaya
+              Tidak Berbayar (Non-ARKAS)
             </span>
-            <span className="text-xl sm:text-2xl font-black text-teal-800 mt-0.5 block">
-              {stats.nonCostCount} Program
+            <span className="text-xl sm:text-2xl font-black text-teal-800 mt-0.5 block tabular-nums">
+              {stats.nonCostCount} Kegiatan
             </span>
-            <span className="text-[10px] text-teal-700">Kombel & Diseminasi Guru</span>
+            <span className="text-[10px] text-teal-700">Rp 0 • Kombel &amp; Pembiasaan</span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
             <Sparkles className="w-5 h-5" />
@@ -421,15 +468,15 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       </div>
 
       {/* Control Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         {/* Search input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari kegiatan RKT, indikator, atau kode ARKAS..."
+            placeholder="Cari kegiatan RKT, indikator, atau kode ARKAS/Non-ARKAS..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
@@ -437,9 +484,25 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+            <Wallet className="w-3.5 h-3.5 text-slate-500" />
+            <span className="text-slate-500 font-medium">Pembiayaan:</span>
+            <select
+              aria-label="Filter Pembiayaan RKT"
+              value={selectedFundingTypeFilter}
+              onChange={(e) => setSelectedFundingTypeFilter(e.target.value)}
+              className="bg-transparent font-bold text-slate-800 focus:outline-none"
+            >
+              <option value="all">Semua (ARKAS &amp; Non-ARKAS)</option>
+              <option value="arkas">Berbayar (ARKAS)</option>
+              <option value="non-arkas">Tidak Berbayar (Non-ARKAS)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
             <Filter className="w-3.5 h-3.5 text-slate-500" />
             <span className="text-slate-500 font-medium">Prioritas:</span>
             <select
+              aria-label="Filter Prioritas RKT"
               value={selectedPriorityFilter}
               onChange={(e) => setSelectedPriorityFilter(e.target.value)}
               className="bg-transparent font-bold text-slate-800 focus:outline-none"
@@ -455,6 +518,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <span className="text-slate-500 font-medium">Jadwal:</span>
             <select
+              aria-label="Filter Jadwal Triwulan"
               value={selectedQuarterFilter}
               onChange={(e) => setSelectedQuarterFilter(e.target.value)}
               className="bg-transparent font-bold text-slate-800 focus:outline-none"
@@ -468,8 +532,18 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
           </div>
 
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition shadow-xs"
+            type="button"
+            onClick={() => handleOpenAddModal(true)}
+            className="px-3 py-2 bg-teal-700 hover:bg-teal-600 text-white font-bold rounded-xl flex items-center gap-1.5 transition shadow-xs whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tambah Non-ARKAS</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOpenAddModal(false)}
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition shadow-xs whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Tambah Kegiatan</span>
@@ -663,8 +737,12 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                             }
                             className="w-full p-1.5 border border-slate-300 rounded font-mono text-xs"
                           />
+                        ) : item.isNonArkas || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0 ? (
+                          <span className="font-mono font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded text-[11px] block text-center whitespace-nowrap">
+                            NON-ARKAS
+                          </span>
                         ) : (
-                          <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] block text-center">
+                          <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] block text-center whitespace-nowrap">
                             {item.arkasCode}
                           </span>
                         )}
@@ -717,45 +795,52 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                             <input
                               type="number"
                               value={editFormData.estimatedBudget ?? item.estimatedBudget}
+                              disabled={editFormData.fundingSource === 'Non-Biaya'}
                               onChange={(e) =>
                                 setEditFormData((prev) => ({
                                   ...prev,
                                   estimatedBudget: Number(e.target.value),
                                 }))
                               }
-                              className="w-full p-1.5 border border-slate-300 rounded text-xs text-right"
+                              className="w-full p-1.5 border border-slate-300 rounded text-xs text-right disabled:bg-slate-100"
                             />
                             <select
                               value={editFormData.fundingSource ?? item.fundingSource}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const src = e.target.value as RktActionItem['fundingSource'];
                                 setEditFormData((prev) => ({
                                   ...prev,
-                                  fundingSource: e.target.value as any,
-                                }))
-                              }
+                                  fundingSource: src,
+                                  isNonArkas: src === 'Non-Biaya',
+                                  estimatedBudget: src === 'Non-Biaya' ? 0 : prev.estimatedBudget || 1500000,
+                                  arkasCode: src === 'Non-Biaya' ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '02.04.03' : prev.arkasCode,
+                                }));
+                              }}
                               className="w-full p-1 border border-slate-300 rounded text-[10px]"
                             >
                               <option value="BOS Reguler">BOS Reguler</option>
                               <option value="BOS Kinerja">BOS Kinerja</option>
-                              <option value="Non-Biaya">Non-Biaya</option>
+                              <option value="Non-Biaya">Non-Biaya (Non-ARKAS)</option>
                               <option value="APBD">APBD</option>
                             </select>
                           </div>
                         ) : (
                           <div>
-                            <span className="font-mono font-bold text-slate-900 block">
+                            <span className="font-mono font-bold text-slate-900 block tabular-nums whitespace-nowrap">
                               {item.estimatedBudget > 0
                                 ? `Rp ${item.estimatedBudget.toLocaleString('id-ID')}`
-                                : 'Non-Biaya'}
+                                : 'Rp 0 (Gratis)'}
                             </span>
                             <span
-                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded mt-0.5 inline-block ${
-                                item.fundingSource === 'Non-Biaya'
-                                  ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block whitespace-nowrap ${
+                                item.isNonArkas || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0
+                                  ? 'bg-teal-50 text-teal-800 border border-teal-200'
                                   : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               }`}
                             >
-                              {item.fundingSource}
+                              {item.isNonArkas || item.fundingSource === 'Non-Biaya' || item.estimatedBudget === 0
+                                ? 'Tidak Berbayar · Non-ARKAS'
+                                : item.fundingSource}
                             </span>
                           </div>
                         )}
@@ -825,7 +910,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
               Total Baris Kegiatan: <strong className="text-slate-900">{items.length}</strong>
             </span>
             <span>
-              Kegiatan Non-Biaya:{' '}
+              Kegiatan Tidak Berbayar (Non-ARKAS):{' '}
               <strong className="text-teal-700">{stats.nonCostCount}</strong>
             </span>
           </div>
@@ -859,6 +944,23 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
             </div>
 
             <form onSubmit={handleAddNewItem} className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-xl bg-teal-50/70 border border-teal-200">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newIsNonArkas}
+                    onChange={(e) => handleToggleNewNonArkas(e.target.checked)}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="font-bold text-slate-800">
+                    Kegiatan Tidak Berbayar (Non-ARKAS · Rp 0)
+                  </span>
+                </label>
+                <p className="text-[11px] text-slate-600 mt-1 pl-6">
+                  Otomatis mengatur anggaran Rp 0, kode NON-ARKAS, dan sumber dana Non-Biaya.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
@@ -934,14 +1036,18 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                     setNewItemData((prev) => ({ ...prev, activityName: e.target.value }))
                   }
                   className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  placeholder="Contoh: Pengadaan media peraga balok matematika kontekstual kelas 1-3"
+                  placeholder={
+                    newIsNonArkas
+                      ? 'Contoh: Gerakan Membaca 15 Menit Sebelum Belajar & Diskusi Sejawat Kombel'
+                      : 'Contoh: Pengadaan media peraga balok matematika kontekstual kelas 1-3'
+                  }
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
-                    Kode Rekening ARKAS
+                    {newIsNonArkas ? 'Kategori / Kode Non-ARKAS' : 'Kode Rekening ARKAS'}
                   </label>
                   <input
                     type="text"
@@ -951,7 +1057,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                       setNewItemData((prev) => ({ ...prev, arkasCode: e.target.value }))
                     }
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                    placeholder="02.04.03"
+                    placeholder={newIsNonArkas ? 'NON-ARKAS' : '02.04.03'}
                   />
                 </div>
 
@@ -961,14 +1067,15 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                   </label>
                   <input
                     type="number"
-                    value={newItemData.estimatedBudget}
+                    disabled={newIsNonArkas}
+                    value={newIsNonArkas ? 0 : newItemData.estimatedBudget}
                     onChange={(e) =>
                       setNewItemData((prev) => ({
                         ...prev,
                         estimatedBudget: Number(e.target.value),
                       }))
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl disabled:bg-slate-100 disabled:text-slate-500"
                     placeholder="0 jika non-biaya"
                   />
                 </div>
@@ -980,19 +1087,21 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                     Sumber Dana
                   </label>
                   <select
-                    value={newItemData.fundingSource}
-                    onChange={(e) =>
+                    value={newIsNonArkas ? 'Non-Biaya' : newItemData.fundingSource}
+                    onChange={(e) => {
+                      const val = e.target.value as RktActionItem['fundingSource'];
+                      handleToggleNewNonArkas(val === 'Non-Biaya');
                       setNewItemData((prev) => ({
                         ...prev,
-                        fundingSource: e.target.value as any,
-                      }))
-                    }
+                        fundingSource: val,
+                      }));
+                    }}
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
                   >
                     <option value="BOS Reguler">BOS Reguler</option>
                     <option value="BOS Kinerja">BOS Kinerja</option>
-                    <option value="Non-Biaya">Non-Biaya (Swadaya Kombel)</option>
-                    <option value="APBD">APBD Kota Batu</option>
+                    <option value="Non-Biaya">Non-Biaya (Tidak Berbayar / Non-ARKAS)</option>
+                    <option value="APBD">APBD</option>
                   </select>
                 </div>
 

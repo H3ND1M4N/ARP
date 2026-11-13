@@ -215,28 +215,37 @@ test('generateRktFromRapor produces structured RKT with prioritized items and va
   assert.equal(rkt.schoolName, 'SD NEGERI GUNUNGSARI 04');
   assert.equal(rkt.sourceNpsn, '20536900');
   assert.equal(rkt.academicYear, '2026/2027');
-  assert.equal(rkt.summary.totalPrograms, 7);
-  assert.equal(rkt.summary.p1Count, 2); // Numerasi (62.1) & Inklusivitas (66.5)
-  assert.equal(rkt.items.length, 7);
+  assert.equal(rkt.summary.totalPrograms, 12); // 7 primary + 5 complementary Non-ARKAS
+  assert.equal(rkt.summary.p1Count, 4); // A.2 & D.10 each have paid + Non-ARKAS activity
+  assert.equal(rkt.items.length, 12);
+  assert.equal(rkt.summary.nonCostCount, 6); // D.1 + 5 Non-ARKAS complementary items
 
   // The first item should be a Priority 1 item
   assert.equal(rkt.items[0].priorityLevel, 'Prioritas Utama (P1)');
 
-  // Numerasi action check
-  const numerasiItem = rkt.items.find((i) => i.raporCode === 'A.2');
-  assert.ok(numerasiItem);
-  assert.equal(numerasiItem?.arkasCode, '02.04.03');
-  assert.equal(numerasiItem?.fundingSource, 'BOS Reguler');
-  assert.equal(numerasiItem?.estimatedBudget, 6500000);
+  // Numerasi paid ARKAS action check
+  const numerasiPaidItem = rkt.items.find((i) => i.raporCode === 'A.2' && !i.isNonArkas);
+  assert.ok(numerasiPaidItem);
+  assert.equal(numerasiPaidItem?.arkasCode, '02.04.03');
+  assert.equal(numerasiPaidItem?.fundingSource, 'BOS Reguler');
+  assert.equal(numerasiPaidItem?.estimatedBudget, 6500000);
 
-  // D.1 Kombel non-cost check
+  // Numerasi complementary unpaid Non-ARKAS check
+  const numerasiNonArkas = rkt.items.find((i) => i.raporCode === 'A.2' && i.isNonArkas);
+  assert.ok(numerasiNonArkas);
+  assert.equal(numerasiNonArkas?.arkasCode, 'NON-ARKAS');
+  assert.equal(numerasiNonArkas?.fundingSource, 'Non-Biaya');
+  assert.equal(numerasiNonArkas?.estimatedBudget, 0);
+
+  // D.1 Kombel non-cost Non-ARKAS check
   const kombelItem = rkt.items.find((i) => i.raporCode === 'D.1');
   assert.ok(kombelItem);
+  assert.equal(kombelItem?.arkasCode, 'NON-ARKAS');
   assert.equal(kombelItem?.fundingSource, 'Non-Biaya');
   assert.equal(kombelItem?.estimatedBudget, 0);
+  assert.equal(kombelItem?.isNonArkas, true);
 
   assert.ok(rkt.summary.totalBudget > 0);
-  assert.ok(rkt.summary.nonCostCount >= 1);
 });
 
 
