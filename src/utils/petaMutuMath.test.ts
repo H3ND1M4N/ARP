@@ -10,6 +10,8 @@ import {
   calculateArkasSummary,
   calculateSchoolBudgetAdjustment,
   validateRaporUpload,
+  parseRaporSheetRows,
+  syncSnpScoresFromRapor,
   generateRktFromRapor,
   SnpStandardScore,
   ArkasProgramItem,
@@ -130,17 +132,67 @@ test('calculateSchoolBudgetAdjustment calculates surplus and deficit scenarios',
   assert.equal(deficitResult.recommendedReductions.length > 0, true);
 });
 
-test('validateRaporUpload checks NPSN and indicators count', () => {
-  const valid = validateRaporUpload('20536900', '20536900', 7);
+test('validateRaporUpload checks valid 8-digit NPSN and indicators count', () => {
+  const valid = validateRaporUpload('20536900', 7);
   assert.equal(valid.isValid, true);
 
-  const mismatchNpsn = validateRaporUpload('20536897', '20536900', 7);
-  assert.equal(mismatchNpsn.isValid, false);
-  assert.match(mismatchNpsn.error!, /NPSN berkas/);
+  const anotherSchoolValid = validateRaporUpload('20536850', 7);
+  assert.equal(anotherSchoolValid.isValid, true);
 
-  const tooFewIndicators = validateRaporUpload('20536900', '20536900', 3);
+  const invalidNpsn = validateRaporUpload('1234', 7);
+  assert.equal(invalidNpsn.isValid, false);
+  assert.match(invalidNpsn.error!, /8 digit/);
+
+  const tooFewIndicators = validateRaporUpload('20536900', 3);
   assert.equal(tooFewIndicators.isValid, false);
   assert.match(tooFewIndicators.error!, /kurang dari 5 indikator/);
+});
+
+test('parseRaporSheetRows extracts school metadata and indicators', () => {
+  const rows = [
+    ['NPSN', '20536850'],
+    ['Nama Sekolah', 'SD Negeri Sisir 03'],
+    ['Jenjang', 'SD'],
+    ['Status', 'Negeri'],
+    ['Kecamatan', 'Kec. Batu'],
+    ['Kabupaten/Kota', 'Kota Batu'],
+    ['Provinsi', 'Provinsi Jawa Timur'],
+    ['Kode', 'Indikator', 'Skor'],
+    ['A.1', 'Kemampuan Literasi', '86.4', '+3.1'],
+    ['A.2', 'Kemampuan Numerasi', '74.2', '+5.0'],
+    ['A.3', 'Karakter Peserta Didik', '85.0'],
+    ['D.1', 'Kualitas Pembelajaran', '79.5'],
+    ['D.4', 'Iklim Keamanan', '91.0'],
+    ['D.8', 'Iklim Kebinekaan', '88.0'],
+    ['D.10', 'Iklim Inklusivitas', '75.0'],
+  ];
+
+  const parsed = parseRaporSheetRows(rows, 'Rapor_Pendidikan_20536850.xlsx');
+  assert.equal(parsed.schoolInfo.npsn, '20536850');
+  assert.equal(parsed.schoolInfo.name, 'SD NEGERI SISIR 03');
+  assert.equal(parsed.schoolInfo.district, 'Kec. Batu');
+  assert.equal(parsed.indicators.length, 7);
+  assert.equal(parsed.indicators[0].code, 'A.1');
+  assert.equal(parsed.indicators[0].score, 86.4);
+  assert.equal(parsed.indicators[1].score, 74.2);
+});
+
+test('syncSnpScoresFromRapor updates SNP standards dynamically', () => {
+  const snp = [
+    { code: 'SKL', score: 70, scale7: 4.9, score2026: 70, category: 'Baik' as const },
+    { code: 'PROSES', score: 65, scale7: 4.55, score2026: 65, category: 'Cukup' as const },
+    { code: 'SARPRAS', score: 62.4, scale7: 4.37, score2026: 62.4, category: 'Cukup' as const },
+  ];
+  const updated = syncSnpScoresFromRapor(snp, [
+    { code: 'A.1', name: 'Literasi', score: 90 },
+    { code: 'A.2', name: 'Numerasi', score: 84 },
+    { code: 'A.3', name: 'Karakter', score: 90 },
+    { code: 'D.1', name: 'Kualitas Pembelajaran', score: 86 },
+  ]);
+  assert.equal(updated[0].score, 88);
+  assert.equal(updated[0].category, 'Sangat Baik');
+  assert.equal(updated[1].score, 85.3);
+  assert.equal(updated[2].score, 62.4);
 });
 
 test('generateRktFromRapor produces structured RKT with prioritized items and valid totals', () => {

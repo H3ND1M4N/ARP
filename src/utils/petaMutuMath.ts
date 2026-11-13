@@ -231,17 +231,17 @@ export function calculateSchoolBudgetAdjustment(params: BudgetAdjustmentParams):
 }
 
 /**
- * Validates uploaded Rapor Pendidikan data integrity
+ * Validates uploaded Rapor Pendidikan data integrity as single source of truth
  */
 export function validateRaporUpload(
   uploadedNpsn: string,
-  targetNpsn: string,
   indicatorsCount: number
 ): { isValid: boolean; error?: string } {
-  if (uploadedNpsn !== targetNpsn) {
+  const cleanNpsn = uploadedNpsn.trim();
+  if (!/^\d{8}$/.test(cleanNpsn)) {
     return {
       isValid: false,
-      error: `NPSN berkas (${uploadedNpsn}) tidak sesuai dengan sekolah aktif (${targetNpsn}).`,
+      error: `NPSN pada berkas ("${uploadedNpsn || '-'}") harus berupa 8 digit angka yang valid.`,
     };
   }
   if (indicatorsCount < 5) {
@@ -251,6 +251,214 @@ export function validateRaporUpload(
     };
   }
   return { isValid: true };
+}
+
+export interface ExtractedRaporSchoolInfo {
+  npsn?: string;
+  name?: string;
+  level?: string;
+  status?: 'Negeri' | 'Swasta';
+  address?: string;
+  district?: string;
+  city?: string;
+  province?: string;
+}
+
+export interface ExtractedRaporIndicatorRow {
+  code: string;
+  name?: string;
+  score: number;
+  delta?: string;
+}
+
+const KNOWN_RAPOR_CODES = ['A.1', 'A.2', 'A.3', 'D.1', 'D.4', 'D.8', 'D.10'];
+
+/**
+ * Extracts school metadata and Rapor Pendidikan indicator scores from parsed tabular sheet rows.
+ */
+export function parseRaporSheetRows(
+  rows: unknown[][],
+  filename: string = ''
+): {
+  schoolInfo: ExtractedRaporSchoolInfo;
+  indicators: ExtractedRaporIndicatorRow[];
+} {
+  const schoolInfo: ExtractedRaporSchoolInfo = {};
+  const indicatorMap = new Map<string, ExtractedRaporIndicatorRow>();
+
+  // 1. Try filename hints for 8-digit NPSN
+  const npsnFilenameMatch = filename.match(/\b(\d{8})\b/);
+  if (npsnFilenameMatch) {
+    schoolInfo.npsn = npsnFilenameMatch[1];
+  }
+
+  for (const row of rows) {
+    if (!Array.isArray(row) || row.length === 0) continue;
+    const cells = row.map((c) => (c === null || c === undefined ? '' : String(c).trim()));
+    const joined = cells.join(' ');
+
+    // Check school metadata pairs in rows
+    for (let i = 0; i < cells.length; i++) {
+      const cellLower = cells[i].toLowerCase();
+      const nextVal = cells[i + 1] || '';
+
+      if (!schoolInfo.npsn && (cellLower === 'npsn' || cellLower.startsWith('npsn:'))) {
+        const inlineMatch = cells[i].match(/\b(\d{8})\b/) || nextVal.match(/\b(\d{8})\b/);
+        if (inlineMatch) schoolInfo.npsn = inlineMatch[1];
+      }
+
+      if (
+        !schoolInfo.name &&
+        (cellLower === 'nama sekolah' ||
+          cellLower === 'nama satuan pendidikan' ||
+          cellLower === 'satuan pendidikan' ||
+          cellLower === 'sekolah') &&
+        nextVal
+      ) {
+        schoolInfo.name = nextVal.toUpperCase();
+      }
+
+      if (!schoolInfo.level && (cellLower === 'jenjang' || cellLower === 'bentuk pendidikan') && nextVal) {
+        schoolInfo.level = nextVal.toUpperCase();
+      }
+
+      if (!schoolInfo.status && cellLower === 'status' && nextVal) {
+        if (/swasta/i.test(nextVal)) schoolInfo.status = 'Swasta';
+        else if (/negeri/i.test(nextVal)) schoolInfo.status = 'Negeri';
+      }
+
+      if (!schoolInfo.district && (cellLower === 'kecamatan' || cellLower === 'kec.') && nextVal) {
+        schoolInfo.district = nextVal;
+      }
+
+      if (
+        !schoolInfo.city &&
+        (cellLower === 'kabupaten/kota' || cellLower === 'kab/kota' || cellLower === 'kota' || cellLower === 'kabupaten') &&
+        nextVal
+      ) {
+        schoolInfo.city = nextVal;
+      }
+
+      if (!schoolInfo.province && cellLower === 'provinsi' && nextVal) {
+        schoolInfo.province = nextVal;
+      }
+
+      if (!schoolInfo.address && cellLower === 'alamat' && nextVal) {
+        schoolInfo.address = nextVal;
+      }
+    }
+
+    // Also detect any standalone 8-digit NPSN if label wasn't exact
+    if (!schoolInfo.npsn) {
+      const npsnMatch = joined.match(/NPSN\s*[:\-]?\s*(\d{8})/i);
+      if (npsnMatch) schoolInfo.npsn = npsnMatch[1];
+    }
+
+    // Check indicator codes (A.1, A.2, A.3, D.1, D.4, D.8, D.10)
+    for (let i = 0; i < cells.length; i++) {
+      const codeMatch = cells[i].match(/\b(A\.1|A\.2|A\.3|D\.1|D\.4|D\.8|D\.10)\b/i);
+      if (codeMatch) {
+        const code = codeMatch[1].toUpperCase();
+        // Look for a numeric score (0-100) in subsequent cells
+        let foundScore: number | null = null;
+        let foundName: string | undefined;
+        let foundDelta: string | undefined;
+
+        for (let j = i + 1; j < cells.length; j++) {
+          const val = cells[j];
+          if (!val) continue;
+          const normalizedNum = Number(val.replace(',', '.').replace('%', ''));
+          if (!Number.isNaN(normalizedNum) && normalizedNum >= 0 && normalizedNum <= 100 && foundScore === null) {
+            foundScore = Math.round(normalizedNum * 10) / 10;
+          } else if (/^[+-]\d+(\.\d+)?$/.test(val.replace(',', '.')) && !foundDelta) {
+            foundDelta = val.replace(',', '.');
+          } else if (!foundName && val.length > 4 && Number.isNaN(Number(val))) {
+            foundName = val;
+          }
+        }
+
+        if (foundScore !== null && !indicatorMap.has(code)) {
+          indicatorMap.set(code, {
+            code,
+            name: foundName,
+            score: foundScore,
+            delta: foundDelta,
+          });
+        }
+      }
+    }
+  }
+
+  // Sort indicators cleanly in canonical order
+  const indicators = Array.from(indicatorMap.values()).sort((a, b) => {
+    const idxA = KNOWN_RAPOR_CODES.indexOf(a.code);
+    const idxB = KNOWN_RAPOR_CODES.indexOf(b.code);
+    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+  });
+
+  return { schoolInfo, indicators };
+}
+
+/**
+ * Synchronizes 8 SNP scores dynamically based on uploaded Rapor Pendidikan indicator values.
+ */
+export function syncSnpScoresFromRapor<
+  T extends {
+    code: string;
+    score: number;
+    scale7: number;
+    score2026: number;
+    category: 'Sangat Baik' | 'Baik' | 'Cukup' | 'Kurang';
+  }
+>(standards: T[], raporIndicators: MinimalRaporIndicator[]): T[] {
+  const getScore = (code: string, fallback: number) => {
+    const found = raporIndicators.find((r) => r.code.toUpperCase() === code);
+    return found ? found.score : fallback;
+  };
+
+  const a1 = getScore('A.1', 78.4);
+  const a2 = getScore('A.2', 62.1);
+  const a3 = getScore('A.3', 81.2);
+  const d1 = getScore('D.1', 72.8);
+  const d4 = getScore('D.4', 88.5);
+  const d8 = getScore('D.8', 84.0);
+  const d10 = getScore('D.10', 66.5);
+
+  const round1 = (val: number) => Math.round(Math.min(100, Math.max(0, val)) * 10) / 10;
+
+  return standards.map((std) => {
+    let nextScore = std.score;
+    switch (std.code) {
+      case 'SKL':
+        nextScore = round1((a1 + a2 + a3) / 3);
+        break;
+      case 'ISI':
+        nextScore = round1(a1 * 0.45 + d1 * 0.35 + a3 * 0.2);
+        break;
+      case 'PROSES':
+        nextScore = round1(d1 * 0.65 + a2 * 0.35);
+        break;
+      case 'PENILAIAN':
+        nextScore = round1(d1 * 0.5 + a1 * 0.25 + a2 * 0.25);
+        break;
+      case 'PTK':
+        nextScore = round1(d1 * 0.6 + d10 * 0.4);
+        break;
+      case 'PENGELOLAAN':
+        nextScore = round1((d4 + d8 + d10) / 3);
+        break;
+      default:
+        break;
+    }
+
+    return {
+      ...std,
+      score: nextScore,
+      score2026: nextScore,
+      scale7: convertTo7Scale(nextScore),
+      category: getScoreCategory(nextScore),
+    };
+  });
 }
 
 export interface RktActionItem {

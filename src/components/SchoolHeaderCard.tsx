@@ -59,10 +59,10 @@ export const SchoolHeaderCard: React.FC<SchoolHeaderCardProps> = ({
               </span>
             </div>
 
-            {/* Input Manual Kepala Sekolah dan Pengawas */}
+            {/* Input Manual Kepala Sekolah, Pengawas, dan NIP */}
             <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl">
-              <div className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 transition">
-                <div className="flex items-center justify-between mb-1">
+              <div className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 transition space-y-1.5">
+                <div className="flex items-center justify-between">
                   <label htmlFor="input-kepala-sekolah" className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1 cursor-pointer">
                     <User className="w-3 h-3 text-amber-600" />
                     <span>Kepala Sekolah</span>
@@ -80,10 +80,24 @@ export const SchoolHeaderCard: React.FC<SchoolHeaderCardProps> = ({
                   className="w-full bg-transparent text-xs font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
                   aria-label="Input manual nama kepala sekolah"
                 />
+                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/80">
+                  <label htmlFor="input-nip-kepala-sekolah" className="text-[10px] font-bold text-slate-500 shrink-0 cursor-pointer">
+                    NIP.
+                  </label>
+                  <input
+                    id="input-nip-kepala-sekolah"
+                    type="text"
+                    value={school.principalNip}
+                    onChange={(e) => onUpdateSchool?.({ principalNip: e.target.value })}
+                    placeholder="Ketik NIP Kepala Sekolah..."
+                    className="w-full bg-transparent text-[11px] font-mono font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                    aria-label="Input manual NIP kepala sekolah"
+                  />
+                </div>
               </div>
 
-              <div className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition">
-                <div className="flex items-center justify-between mb-1">
+              <div className="bg-slate-50/90 hover:bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition space-y-1.5">
+                <div className="flex items-center justify-between">
                   <label htmlFor="input-pengawas" className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1 cursor-pointer">
                     <UserCheck className="w-3 h-3 text-blue-600" />
                     <span>Pengawas Pembina</span>
@@ -101,6 +115,20 @@ export const SchoolHeaderCard: React.FC<SchoolHeaderCardProps> = ({
                   className="w-full bg-transparent text-xs font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
                   aria-label="Input manual nama pengawas"
                 />
+                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/80">
+                  <label htmlFor="input-nip-pengawas" className="text-[10px] font-bold text-slate-500 shrink-0 cursor-pointer">
+                    NIP.
+                  </label>
+                  <input
+                    id="input-nip-pengawas"
+                    type="text"
+                    value={school.supervisorNip}
+                    onChange={(e) => onUpdateSchool?.({ supervisorNip: e.target.value })}
+                    placeholder="Ketik NIP Pengawas Pembina..."
+                    className="w-full bg-transparent text-[11px] font-mono font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                    aria-label="Input manual NIP pengawas"
+                  />
+                </div>
               </div>
             </div>
           </div>

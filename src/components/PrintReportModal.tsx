@@ -101,10 +101,10 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 <strong>Kecamatan / Kota:</strong> {school.district}, {school.city}
               </div>
               <div>
-                <strong>Kepala Sekolah:</strong> {school.principal}
+                <strong>Kepala Sekolah:</strong> {school.principal || '-'} (NIP. {school.principalNip || '-'})
               </div>
               <div>
-                <strong>Pengawas Pembina:</strong> {school.supervisor}
+                <strong>Pengawas Pembina:</strong> {school.supervisor || '-'} (NIP. {school.supervisorNip || '-'})
               </div>
             </div>
           </div>
@@ -180,16 +180,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <p>Mengetahui,</p>
               <p className="font-bold">Pengawas Pembina / Auditor Mutu</p>
               <div className="h-16"></div>
-              <p className="font-bold underline">{school.supervisor}</p>
-              <p className="text-[10px] text-slate-500">NIP. 19680415 199303 1 004</p>
+              <p className="font-bold underline">{school.supervisor || '-'}</p>
+              <p className="text-[10px] text-slate-500">NIP. {school.supervisorNip || '-'}</p>
             </div>
 
             <div>
-              <p>Kota Batu, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p>{school.city || 'Indonesia'}, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               <p className="font-bold">Kepala Satuan Pendidikan</p>
               <div className="h-16"></div>
-              <p className="font-bold underline">{school.principal}</p>
-              <p className="text-[10px] text-slate-500">NIP. 19740922 199807 1 002</p>
+              <p className="font-bold underline">{school.principal || '-'}</p>
+              <p className="text-[10px] text-slate-500">NIP. {school.principalNip || '-'}</p>
             </div>
           </div>
         </div>

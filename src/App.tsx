@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Layers,
   FileText,
@@ -6,12 +6,7 @@ import {
   Coins,
   UploadCloud,
   Sparkles,
-  BarChart3,
-  Calendar,
   Building2,
-  CheckCircle2,
-  HelpCircle,
-  Compass,
   FileSpreadsheet,
   Wallet,
 } from 'lucide-react';
@@ -26,9 +21,8 @@ import {
   RaporIndicator,
   ArkasRecommendation,
   RktDocument,
-  KOTA_BATU_DISTRICTS,
 } from './data/simantapData';
-import { calculateOverallSnpScore, parseRegionalPath } from './utils/petaMutuMath';
+import { calculateOverallSnpScore, syncSnpScoresFromRapor } from './utils/petaMutuMath';
 import { HeaderNav } from './components/HeaderNav';
 import { SchoolHeaderCard } from './components/SchoolHeaderCard';
 import { RadarChart } from './components/RadarChart';
@@ -40,8 +34,8 @@ import { ArkasTab } from './components/ArkasTab';
 import { PenyesuaianAnggaranTab } from './components/PenyesuaianAnggaranTab';
 import { RktUploadTab } from './components/RktUploadTab';
 import { AiThinkingAssistantTab } from './components/AiThinkingAssistantTab';
-import { RegionalSelectorModal } from './components/RegionalSelectorModal';
 import { PrintReportModal } from './components/PrintReportModal';
+import { SingleDoorLogin } from './components/SingleDoorLogin';
 
 export type ActiveTab =
   | 'snp'
@@ -53,7 +47,18 @@ export type ActiveTab =
   | 'rkt'
   | 'ai-thinking';
 
+const AUTH_STORAGE_KEY = 'arp_single_door_user';
+
 export default function App() {
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage.getItem(AUTH_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
+
   const [currentSchool, setCurrentSchool] = useState<SchoolProfile>(DEFAULT_SCHOOL);
   const [snpStandards, setSnpStandards] = useState<SnpStandardData[]>(DEFAULT_SNP_STANDARDS);
   const [raporIndicators, setRaporIndicators] = useState<RaporIndicator[]>(DEFAULT_RAPOR_INDICATORS);
@@ -62,69 +67,76 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('snp');
   const [selectedYear, setSelectedYear] = useState<'2026' | '2025' | '2024'>('2026');
-  const [currentRole, setCurrentRole] = useState<'public' | 'school' | 'supervisor'>('public');
   const [rktSubView, setRktSubView] = useState<'generator' | 'upload'>('generator');
 
-  // Modals
-  const [isRegionalModalOpen, setIsRegionalModalOpen] = useState(false);
+  // Print Modal
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // AI Prompt preset query trigger
   const [aiFocusPrompt, setAiFocusPrompt] = useState<string>('');
 
-  const handleOpenRktGenerator = (customIndicators?: RaporIndicator[]) => {
+  const handleLogin = (username: string) => {
+    setLoggedInUser(username);
+    try {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, username);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    try {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const handleApplyNewRaporData = (
+    newIndicators: RaporIndicator[],
+    _releaseYear: string,
+    schoolUpdates?: Partial<SchoolProfile>
+  ) => {
+    setRaporIndicators(newIndicators);
+    if (schoolUpdates) {
+      setCurrentSchool((prev) => ({
+        ...prev,
+        ...schoolUpdates,
+      }));
+    }
+    setSnpStandards((prev) => syncSnpScoresFromRapor(prev, newIndicators));
+  };
+
+  const handleOpenRktGenerator = (
+    customIndicators?: RaporIndicator[],
+    schoolUpdates?: Partial<SchoolProfile>
+  ) => {
     if (customIndicators && customIndicators.length > 0) {
       setRaporIndicators(customIndicators);
+      setSnpStandards((prev) => syncSnpScoresFromRapor(prev, customIndicators));
+    }
+    if (schoolUpdates) {
+      setCurrentSchool((prev) => ({
+        ...prev,
+        ...schoolUpdates,
+      }));
     }
     setRktSubView('generator');
     setActiveTab('rkt');
   };
 
+  // Single-door general login gate (tanpa pembedaan peran)
+  if (!loggedInUser) {
+    return <SingleDoorLogin onLogin={handleLogin} />;
+  }
+
   // Overall Score & SNP Predicate calculation
   const overallCalc = calculateOverallSnpScore(snpStandards);
 
-  // Check URL pathname for deep link if present (e.g. /simantap/050000/056800/056802/20536900)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const parsed = parseRegionalPath(window.location.pathname);
-      if (parsed && parsed.npsn) {
-        handleQuickSearchNpsn(parsed.npsn);
-      }
-    }
-  }, []);
-
-  const handleQuickSearchNpsn = (npsnQuery: string) => {
-    // Find school in Kota Batu districts
-    for (const dist of KOTA_BATU_DISTRICTS) {
-      const match = dist.schools.find(
-        (s) => s.npsn === npsnQuery || s.name.toLowerCase().includes(npsnQuery.toLowerCase())
-      );
-      if (match) {
-        if (match.npsn === '20536900') {
-          setCurrentSchool(DEFAULT_SCHOOL);
-        } else {
-          setCurrentSchool({
-            ...DEFAULT_SCHOOL,
-            npsn: match.npsn,
-            name: match.name,
-            level: match.level,
-            district: dist.name,
-            districtCode: dist.code,
-          });
-        }
-        return;
-      }
-    }
-
-    // If query is an 8 digit NPSN not in demo list, simulate school
-    if (/^\d{8}$/.test(npsnQuery)) {
-      setCurrentSchool({
-        ...DEFAULT_SCHOOL,
-        npsn: npsnQuery,
-        name: `SD NEGERI WILAYAH JAWA TIMUR (${npsnQuery})`,
-      });
-    }
-  };
+  const highestSnp = [...snpStandards].sort((a, b) => b.score - a.score)[0];
+  const lowestSnp = [...snpStandards].sort((a, b) => a.score - b.score)[0];
+  const prosesSnp = snpStandards.find((s) => s.code === 'PROSES');
 
   const handleToggleArkasStatus = (id: string) => {
     setArkasPrograms((prev) =>
@@ -168,21 +180,6 @@ export default function App() {
     setActiveTab('ai-thinking');
   };
 
-  const handleApplyNewRaporData = (newIndicators: RaporIndicator[], releaseYear: string) => {
-    setRaporIndicators(newIndicators);
-    // Sync to SNP standards
-    const numerasi = newIndicators.find((i) => i.code === 'A.2');
-    if (numerasi && numerasi.score >= 70) {
-      setSnpStandards((prev) =>
-        prev.map((s) => {
-          if (s.code === 'SKL') return { ...s, score: 84.5, scale7: 5.92 };
-          if (s.code === 'PROSES') return { ...s, score: 73.0, scale7: 5.11, category: 'Baik' as const };
-          return s;
-        })
-      );
-    }
-  };
-
   const handleUpdateProgramBudget = (id: string, newBudget: number) => {
     setArkasPrograms((prev) =>
       prev.map((p) => (p.id === id ? { ...p, estimatedBudget: newBudget } : p))
@@ -191,17 +188,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans">
-      {/* Official Government Header Nav */}
+      {/* Header Nav */}
       <HeaderNav
         currentSchool={currentSchool}
-        onOpenRegionalSelector={() => setIsRegionalModalOpen(true)}
-        onQuickSearchNpsn={handleQuickSearchNpsn}
+        loggedInUser={loggedInUser}
+        onOpenUploadRapor={() => setActiveTab('upload-rapor')}
         onPrintReport={() => setIsPrintModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
-        {/* School Identity Header Card with manual input for Kepala Sekolah & Pengawas */}
+        {/* School Identity Header Card with manual input for Kepala Sekolah, Pengawas, & NIP */}
         <SchoolHeaderCard
           school={currentSchool}
           overallScore={overallCalc.averageScore}
@@ -341,9 +339,9 @@ export default function App() {
                         Standar Tertinggi
                       </span>
                       <span className="text-sm font-bold text-emerald-700 block mt-0.5">
-                        Pembiayaan (85.0)
+                        {highestSnp?.code} ({highestSnp?.score})
                       </span>
-                      <span className="text-[10px] text-slate-500">Akuntabilitas BOS tinggi</span>
+                      <span className="text-[10px] text-slate-500">{highestSnp?.category}</span>
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -351,9 +349,9 @@ export default function App() {
                         Standar Terendah
                       </span>
                       <span className="text-sm font-bold text-amber-700 block mt-0.5">
-                        Sarpras (62.4)
+                        {lowestSnp?.code} ({lowestSnp?.score})
                       </span>
-                      <span className="text-[10px] text-slate-500">Koleksi buku & TIK minim</span>
+                      <span className="text-[10px] text-slate-500">Prioritas pembenahan</span>
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -361,31 +359,34 @@ export default function App() {
                         Kualitas Proses
                       </span>
                       <span className="text-sm font-bold text-blue-700 block mt-0.5">
-                        Proses (68.1)
+                        Proses ({prosesSnp?.score ?? '-'})
                       </span>
-                      <span className="text-[10px] text-slate-500">Perlu media interaktif</span>
+                      <span className="text-[10px] text-slate-500">Berbasis Rapor</span>
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                        Rata-Rata Kota Batu
+                        Rata-Rata Sekolah
                       </span>
                       <span className="text-sm font-bold text-slate-800 block mt-0.5">
-                        77.4 / 100
+                        {overallCalc.averageScore} / 100
                       </span>
-                      <span className="text-[10px] text-slate-500">Tolok ukur daerah</span>
+                      <span className="text-[10px] text-slate-500">Sumber Rapor Aktif</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Satuan pendidikan telah memenuhi standar kompetensi lulusan dan pengelolaan dengan sangat baik. Fokus pembenahan tahun 2026-2027 diarahkan pada penyediaan alat peraga matematika dan revitalisasi pojok baca kelas untuk mendukung lonjakan capaian numerasi.
+                    Data mutu {currentSchool.name} (NPSN: {currentSchool.npsn}) bersumber tunggal dari berkas Rapor Pendidikan yang diunggah. Gunakan tab Upload Rapor Terbaru untuk memperbarui sekolah dan capaian mutu secara otomatis.
                   </p>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
-                    Sumber data: Dapodik & Supervisi Mutu Mandiri HF 2026
-                  </span>
+                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab('upload-rapor')}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                  >
+                    Perbarui Sumber dari Upload Rapor Pendidikan &gt;
+                  </button>
                   <button
                     onClick={() => setActiveTab('rootcause')}
                     className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline"
@@ -411,13 +412,13 @@ export default function App() {
             indicators={raporIndicators}
             onOpenAiRecommendation={(code) =>
               handleTriggerAiFromOtherTab(
-                `Berikan rekomendasi pembenahan mendalam untuk indikator Rapor Pendidikan ${code} SDN Gunungsari 04 beserta integrasi program kegiatan ARKAS.`
+                `Berikan rekomendasi pembenahan mendalam untuk indikator Rapor Pendidikan ${code} ${currentSchool.name} beserta integrasi program kegiatan ARKAS.`
               )
             }
           />
         )}
 
-        {/* Tab 2.5: Upload Rapor Pendidikan Terbaru */}
+        {/* Tab 2.5: Upload Rapor Pendidikan Terbaru (Single Source) */}
         {activeTab === 'upload-rapor' && (
           <UploadRaporPendidikanTab
             school={currentSchool}
@@ -433,7 +434,7 @@ export default function App() {
             onSelectActionToArkas={() => setActiveTab('arkas')}
             onLaunchAiThinking={(focus) =>
               handleTriggerAiFromOtherTab(
-                `Lakukan analisis berpikir tingkat tinggi (High Thinking) mengenai ${focus} SDN Gunungsari 04 dan rekomendasikan langkah taktis RKT serta ARKAS.`
+                `Lakukan analisis berpikir tingkat tinggi (High Thinking) mengenai ${focus} ${currentSchool.name} dan rekomendasikan langkah taktis RKT serta ARKAS.`
               )
             }
           />
@@ -447,7 +448,7 @@ export default function App() {
             onAddNewProgram={handleAddNewArkasProgram}
             onOpenAiArkasGenerator={() =>
               handleTriggerAiFromOtherTab(
-                'Generate usulan program kegiatan baru yang berbasis ARKAS untuk pembenahan Standar Sarana Prasarana dan Standar Proses SDN Gunungsari 04.'
+                `Generate usulan program kegiatan baru yang berbasis ARKAS untuk pembenahan Standar Sarana Prasarana dan Standar Proses ${currentSchool.name}.`
               )
             }
           />
@@ -467,7 +468,6 @@ export default function App() {
         {activeTab === 'rkt' && (
           <RktUploadTab
             documents={rktDocuments}
-            currentRole={currentRole}
             school={currentSchool}
             indicators={raporIndicators}
             onUploadNewDocument={handleUploadRkt}
@@ -478,7 +478,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 6: Asisten AI Thinking (gemini-4-argon with ThinkingLevel.HIGH) */}
+        {/* Tab 6: Asisten AI Thinking */}
         {activeTab === 'ai-thinking' && (
           <AiThinkingAssistantTab
             school={currentSchool}
@@ -511,20 +511,13 @@ export default function App() {
               Aplikasi personal dikembangkan oleh <span className="text-amber-400 font-bold">Hendy Firmansyah</span> (hendy.HF@gmail.com)
             </p>
             <p className="text-slate-500 mt-0.5">
-              SD NEGERI GUNUNGSARI 04 • NPSN: 20536900 • Kec. Bumiaji, Kota Batu
+              {currentSchool.name} • NPSN: {currentSchool.npsn} • {currentSchool.district}, {currentSchool.city}
             </p>
           </div>
         </div>
       </footer>
 
-      {/* Modals */}
-      <RegionalSelectorModal
-        isOpen={isRegionalModalOpen}
-        onClose={() => setIsRegionalModalOpen(false)}
-        currentNpsn={currentSchool.npsn}
-        onSelectSchool={handleQuickSearchNpsn}
-      />
-
+      {/* Print Modal */}
       <PrintReportModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}

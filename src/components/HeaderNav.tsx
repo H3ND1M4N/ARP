@@ -1,41 +1,34 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Building2,
-  Search,
   MapPin,
   ChevronRight,
   Printer,
-  Compass,
+  FileSpreadsheet,
+  LogOut,
+  UserCircle2,
 } from 'lucide-react';
 import { SchoolProfile } from '../data/simantapData';
 
 interface HeaderNavProps {
   currentSchool: SchoolProfile;
-  onOpenRegionalSelector: () => void;
-  onQuickSearchNpsn: (npsn: string) => void;
+  loggedInUser: string;
+  onOpenUploadRapor: () => void;
   onPrintReport: () => void;
+  onLogout: () => void;
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
   currentSchool,
-  onOpenRegionalSelector,
-  onQuickSearchNpsn,
+  loggedInUser,
+  onOpenUploadRapor,
   onPrintReport,
+  onLogout,
 }) => {
-  const [searchInput, setSearchInput] = useState('');
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      onQuickSearchNpsn(searchInput.trim());
-      setSearchInput('');
-    }
-  };
-
   return (
     <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-slate-800">
-      {/* Top Gov Agency Brand Bar */}
-      <div className="bg-slate-950 px-4 py-1.5 border-b border-slate-800/60 text-xs text-slate-300 flex flex-wrap justify-between items-center">
+      {/* Top Brand Bar */}
+      <div className="bg-slate-950 px-4 py-1.5 border-b border-slate-800/60 text-xs text-slate-300 flex flex-wrap justify-between items-center gap-2">
         <div className="flex items-center space-x-3">
           <span className="inline-flex items-center gap-1.5 font-medium text-amber-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -46,8 +39,9 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             Aplikasi Pengembangan Mutu Pendidikan buatan <span className="text-amber-300 font-bold">Hendy Firmansyah</span>
           </span>
         </div>
-        <div className="text-slate-500 text-[11px] hidden sm:block font-mono">
-          Edisi Mandiri • Versi 2.0
+        <div className="text-slate-400 text-[11px] flex items-center gap-2 font-mono">
+          <UserCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Pengguna: <strong className="text-slate-200">{loggedInUser}</strong></span>
         </div>
       </div>
 
@@ -73,40 +67,20 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           </div>
         </div>
 
-        {/* Quick NPSN & School Search */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md min-w-[240px]">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Cari NPSN (misal: 20536900) atau nama sekolah..."
-              className="w-full pl-9 pr-20 py-2 bg-slate-800/90 text-sm text-slate-100 placeholder-slate-400 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-              aria-label="Cari NPSN atau nama sekolah"
-            />
-            <button
-              type="submit"
-              className="absolute right-1 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition"
-            >
-              Cari
-            </button>
-          </div>
-        </form>
-
         {/* Actions Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={onOpenRegionalSelector}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            title="Pilih Wilayah / Sekolah Lain"
+            type="button"
+            onClick={onOpenUploadRapor}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition"
+            title="Sumber Data Tunggal dari Upload File Rapor Pendidikan"
           >
-            <Compass className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Ganti Sekolah / Wilayah</span>
-            <span className="md:hidden">Wilayah</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Sumber Data: Upload Rapor Pendidikan</span>
           </button>
 
           <button
+            type="button"
             onClick={onPrintReport}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
             title="Cetak Lembar Peta Mutu Satuan Pendidikan"
@@ -114,35 +88,30 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             <Printer className="w-3.5 h-3.5 text-sky-400" />
             <span className="hidden sm:inline">Cetak</span>
           </button>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-rose-900/60 text-slate-200 hover:text-rose-200 border border-slate-700 hover:border-rose-700/70 transition"
+            title="Keluar ke Halaman Login"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Keluar</span>
+          </button>
         </div>
       </div>
 
-      {/* Hierarchical Breadcrumb Route bar */}
+      {/* Single-source School Identity Breadcrumb bar */}
       <div className="bg-slate-950/80 px-4 sm:px-6 py-2 border-t border-slate-800/80 text-xs text-slate-400 flex items-center flex-wrap gap-1.5">
         <span className="text-slate-500 flex items-center gap-1 font-mono text-[11px]">
           <MapPin className="w-3.5 h-3.5 text-amber-500" />
-          Rute Kode:
+          Identitas Rapor Aktif:
         </span>
-        <button
-          onClick={onOpenRegionalSelector}
-          className="text-slate-300 hover:text-amber-400 transition underline-offset-2 hover:underline"
-        >
-          {currentSchool.province} ({currentSchool.provinceCode})
-        </button>
+        <span className="text-slate-300">{currentSchool.province}</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-        <button
-          onClick={onOpenRegionalSelector}
-          className="text-slate-300 hover:text-amber-400 transition underline-offset-2 hover:underline"
-        >
-          {currentSchool.city} ({currentSchool.cityCode})
-        </button>
+        <span className="text-slate-300">{currentSchool.city}</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-        <button
-          onClick={onOpenRegionalSelector}
-          className="text-slate-300 hover:text-amber-400 transition underline-offset-2 hover:underline"
-        >
-          {currentSchool.district} ({currentSchool.districtCode})
-        </button>
+        <span className="text-slate-300">{currentSchool.district}</span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
         <span className="font-semibold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/50">
           {currentSchool.name} (NPSN: {currentSchool.npsn})

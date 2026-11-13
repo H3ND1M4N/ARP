@@ -29,7 +29,7 @@ export const AiThinkingAssistantTab: React.FC<AiThinkingAssistantTabProps> = ({
 }) => {
   const [query, setQuery] = useState(
     initialQuery ||
-      'Analisis mendalam akar masalah capaian numerasi dan sarpras SDN Gunungsari 04 serta buat rekomendasi RKT 2027 lengkap dengan kode kegiatan ARKAS'
+      `Analisis mendalam akar masalah capaian numerasi dan sarpras ${school.name} serta buat rekomendasi RKT 2027 lengkap dengan kode kegiatan ARKAS`
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -42,17 +42,17 @@ export const AiThinkingAssistantTab: React.FC<AiThinkingAssistantTabProps> = ({
     {
       label: 'Akar Masalah Numerasi & Sarpras',
       prompt:
-        'Lakukan diagnosis akar masalah mendalam mengapa Standar Sarpras (62.4) dan Numerasi (62.1) SDN Gunungsari 04 berada di kategori Sedang, lalu petakan program benahi RKT dengan kode anggaran ARKAS.',
+        `Lakukan diagnosis akar masalah mendalam mengapa Standar Sarpras dan Numerasi ${school.name} perlu penguatan, lalu petakan program benahi RKT dengan kode anggaran ARKAS.`,
     },
     {
       label: 'Optimalisasi Kombel Non-Biaya',
       prompt:
-        'Susun program kerja Komunitas Belajar (Kombel) Guru SDN Gunungsari 04 berbasis kegiatan non-biaya untuk percepatan adopsi Asesmen Diagnostik Numerasi dan PMM.',
+        `Susun program kerja Komunitas Belajar (Kombel) Guru ${school.name} berbasis kegiatan non-biaya untuk percepatan adopsi Asesmen Diagnostik Numerasi dan PMM.`,
     },
     {
       label: 'Format Narasi Rekomendasi Mandiri',
       prompt:
-        'Buatkan draf laporan telaah dan catatan rekomendasi strategis terhadap pemenuhan 8 SNP untuk SDN Gunungsari 04.',
+        `Buatkan draf laporan telaah dan catatan rekomendasi strategis terhadap pemenuhan 8 SNP untuk ${school.name}.`,
     },
   ];
 
@@ -218,7 +218,7 @@ export const AiThinkingAssistantTab: React.FC<AiThinkingAssistantTabProps> = ({
             <span className="font-bold text-sm">Gemini 4 Argon sedang melakukan penalaran mendalam...</span>
           </div>
           <div className="space-y-1.5 text-xs text-slate-400 pl-7">
-            <p>1. Menautkan 8 Standar Nasional Pendidikan (SNP) dengan rapor numerasi SDN Gunungsari 04...</p>
+            <p>1. Menautkan 8 Standar Nasional Pendidikan (SNP) dengan rapor numerasi {school.name}...</p>
             <p>2. Mengidentifikasi rantai kausalitas antara Standar Sarpras (62.4) dan Standar Proses (68.1)...</p>
             <p>3. Merumuskan kode rekening ARKAS Kemendikbudristek dan opsi Kombel non-biaya...</p>
           </div>

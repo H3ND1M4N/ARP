@@ -18,7 +18,6 @@ import { RktGeneratorWorkbench } from './RktGeneratorWorkbench';
 
 interface RktUploadTabProps {
   documents: RktDocument[];
-  currentRole: 'public' | 'school' | 'supervisor';
   school: SchoolProfile;
   indicators: RaporIndicator[];
   onUploadNewDocument: (doc: Omit<RktDocument, 'id'>) => void;
@@ -34,7 +33,6 @@ interface RktUploadTabProps {
 
 export const RktUploadTab: React.FC<RktUploadTabProps> = ({
   documents,
-  currentRole,
   school,
   indicators,
   onUploadNewDocument,
@@ -51,7 +49,7 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
   };
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadTitle, setUploadTitle] = useState('Rencana Kegiatan Tahunan (RKT) SDN Gunungsari 04 Tahun 2027');
+  const [uploadTitle, setUploadTitle] = useState(`Rencana Kegiatan Tahunan (RKT) ${school.name} Tahun 2027`);
   const [academicYear, setAcademicYear] = useState('2026/2027');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -79,7 +77,7 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
         academicYear,
         uploadDate: 'Hari ini, ' + new Date().toLocaleTimeString('id-ID') + ' WIB',
         fileSize: selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB (PDF)` : '4.2 MB (PDF)',
-        uploadedBy: 'Operator SDN Gunungsari 04',
+        uploadedBy: school.principal || 'Pengguna ARP',
         status: 'Menunggu Validasi',
         supervisorNotes: 'Dokumen baru diunggah. Menunggu verifikasi pengawas pembina.',
       });

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Sparkles,
   Download,
@@ -50,6 +50,11 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
   }, [indicators, school, academicYear]);
 
   const [items, setItems] = useState<RktActionItem[]>(initialGenerated.items);
+
+  useEffect(() => {
+    setItems(initialGenerated.items);
+  }, [initialGenerated]);
+
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>('all');
   const [selectedQuarterFilter, setSelectedQuarterFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');

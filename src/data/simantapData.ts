@@ -16,7 +16,9 @@ export interface SchoolProfile {
   provinceCode: string;
   postalCode: string;
   principal: string;
+  principalNip: string;
   supervisor: string;
+  supervisorNip: string;
   studentsCount: number;
   teachersCount: number;
   classesCount: number;
@@ -160,7 +162,9 @@ export const DEFAULT_SCHOOL: SchoolProfile = {
   provinceCode: '050000',
   postalCode: '65337',
   principal: 'Supardi, S.Pd., M.M.',
+  principalNip: '19740922 199807 1 002',
   supervisor: 'Drs. H. Bambang Irawan, M.Pd. (Pengawas Wilayah Bumiaji)',
+  supervisorNip: '19680415 199303 1 004',
   studentsCount: 148,
   teachersCount: 11,
   classesCount: 6,
