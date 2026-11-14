@@ -172,10 +172,22 @@ export function calculateSchoolBudgetAdjustment(params: BudgetAdjustmentParams):
     if (p.isNonCost) continue;
     totalProposed += p.estimatedBudget;
 
-    // Categorize by priority code / standard target
-    if (p.code.startsWith('02.04') || p.code.startsWith('03.01') || p.snpStandardId.toLowerCase().includes('sarpras')) {
+    // Categorize by priority code / standard target (supports ARKAS 4 Kemendikdasmen & legacy codes)
+    if (
+      p.code.startsWith('04.06') ||
+      p.code.startsWith('03.03') ||
+      p.code.startsWith('02.04') ||
+      p.code.startsWith('03.01') ||
+      p.snpStandardId.toLowerCase().includes('sarpras')
+    ) {
       tier1Budget += p.estimatedBudget;
-    } else if (p.code.startsWith('03.04') || p.code.startsWith('04.02') || p.snpStandardId.toLowerCase().includes('proses')) {
+    } else if (
+      p.code.startsWith('02.02') ||
+      p.code.startsWith('08.04') ||
+      p.code.startsWith('03.04') ||
+      p.code.startsWith('04.02') ||
+      p.snpStandardId.toLowerCase().includes('proses')
+    ) {
       tier2Budget += p.estimatedBudget;
     } else {
       tier3Budget += p.estimatedBudget;
@@ -192,19 +204,19 @@ export function calculateSchoolBudgetAdjustment(params: BudgetAdjustmentParams):
     // If deficit, recommend adjusting tier 3 and converting tier 2 activities into Non-Cost Kombel
     for (const p of programs) {
       if (p.isNonCost) continue;
-      if (p.code.startsWith('05.01')) {
+      if (p.code.startsWith('05.05') || p.code.startsWith('05.01')) {
         recommendedReductions.push({
           programName: p.name,
           code: p.code,
           savedAmount: p.estimatedBudget * 0.5,
           recommendation: 'Sesuaikan volume pengadaan atau gunakan sisa bahan pemeliharaan triwulan sebelumnya.',
         });
-      } else if (p.code.startsWith('04.02')) {
+      } else if (p.code.startsWith('08.04') || p.code.startsWith('04.02')) {
         recommendedReductions.push({
           programName: p.name,
           code: p.code,
           savedAmount: p.estimatedBudget * 0.4,
-          recommendation: 'Optimalkan instrumen digital Google Form / PMM mandiri guru untuk menekan biaya cetak.',
+          recommendation: 'Optimalkan instrumen digital Google Form / Ruang GTK mandiri guru untuk menekan biaya cetak.',
         });
       }
     }
@@ -271,7 +283,7 @@ export interface ExtractedRaporIndicatorRow {
   delta?: string;
 }
 
-const KNOWN_RAPOR_CODES = ['A.1', 'A.2', 'A.3', 'D.1', 'D.4', 'D.8', 'D.10'];
+const KNOWN_RAPOR_CODES = ['A.1', 'A.2', 'A.3', 'D.1', 'D.4', 'D.8', 'D.10', 'E.2'];
 
 /**
  * Extracts school metadata and Rapor Pendidikan indicator scores from parsed tabular sheet rows.
@@ -354,9 +366,9 @@ export function parseRaporSheetRows(
       if (npsnMatch) schoolInfo.npsn = npsnMatch[1];
     }
 
-    // Check indicator codes (A.1, A.2, A.3, D.1, D.4, D.8, D.10)
+    // Check indicator codes (A.1, A.2, A.3, D.1, D.4, D.8, D.10, E.2)
     for (let i = 0; i < cells.length; i++) {
-      const codeMatch = cells[i].match(/\b(A\.1|A\.2|A\.3|D\.1|D\.4|D\.8|D\.10)\b/i);
+      const codeMatch = cells[i].match(/\b(A\.1|A\.2|A\.3|D\.1|D\.4|D\.8|D\.10|E\.2)\b/i);
       if (codeMatch) {
         const code = codeMatch[1].toUpperCase();
         // Look for a numeric score (0-100) in subsequent cells
@@ -533,34 +545,34 @@ export function generateRktFromRapor(
   const blueprintMap: Record<string, BlueprintEntry> = {
     'A.1': {
       rootCause: 'Rendahnya minat baca kritis & minim ragam buku non-teks ramah anak di perpustakaan/sudut baca kelas.',
-      programName: 'Program Penguatan Gerakan Literasi Sekolah (GLS)',
-      activityName: 'Revitalisasi Pojok Baca Kelas & Pengadaan Buku Cerita Bergambar Ramah Anak Non-Teks',
-      arkasCode: '03.05.01',
+      programName: 'Program Penguatan Gerakan Literasi Sekolah (GLS) & Revitalisasi Perpustakaan',
+      activityName: 'Pengembangan Perpustakaan, Revitalisasi Pojok Baca Kelas, dan Pengadaan Buku Bacaan Bermutu Non-Teks',
+      arkasCode: '02.02.01',
       targetIndicator: '100% kelas memiliki pojok baca aktif; skor literasi naik minimal +4.5 poin.',
       defaultBudget: 4500000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
-      timeline: ['TW1', 'TW2'],
-      pic: 'Koordinator Literasi & Guru Kelas',
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Koordinator Literasi & Kepala Perpustakaan',
     },
     'A.2': {
       rootCause: 'Guru belum terbiasa menerapkan strategi numerasi kontekstual & minim media manipulatif pemecahan masalah.',
-      programName: 'Program Penguatan Kompetensi Pendidik Bidang Numerasi & Penalaran Logika',
-      activityName: 'Pelatihan Bimtek Modul Ajar Numerasi & Pengadaan Kit Peraga Matematika Kontekstual',
-      arkasCode: '02.04.03',
-      targetIndicator: 'Seluruh guru kelas menerapkan modul numerasi PMM; skor numerasi mencapai predikat Baik (>=72.0).',
+      programName: 'Program Penguatan Kompetensi Pendidik & Kegiatan Pembelajaran Numerasi',
+      activityName: 'Peningkatan Kompetensi Guru Numerasi & Pengembangan Media/Kit Peraga Matematika Kontekstual',
+      arkasCode: '04.06.05',
+      targetIndicator: 'Seluruh guru kelas menerapkan pembelajaran numerasi aktif; skor numerasi mencapai predikat Baik (>=72.0).',
       defaultBudget: 6500000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
-      timeline: ['TW1', 'TW2', 'TW3'],
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Waka Kurikulum & Tim Pengembang',
     },
     'A.3': {
-      rootCause: 'Penanaman profil Pelajar Pancasila belum terinternalisasi maksimal dalam pembiasaan dan iklim kelas.',
-      programName: 'Program Penguatan Karakter & Gelar Karya Projek Penguatan Profil Pelajar Pancasila (P5)',
-      activityName: 'Penyelenggaraan Gelar Karya P5 Kewirausahaan & Budaya Kearifan Lokal Daerah',
-      arkasCode: '03.04.02',
-      targetIndicator: '100% siswa aktif berpartisipasi dalam pameran P5; pembiasaan gotong royong dan kemandirian meningkat.',
+      rootCause: 'Penanaman profil Pelajar Pancasila belum terinternalisasi maksimal dalam pembiasaan dan pembelajaran projek.',
+      programName: 'Program Penguatan Karakter & Pembelajaran Berbasis Projek (P5)',
+      activityName: 'Pengembangan Pembelajaran Berbasis Projek (P5) Kewirausahaan & Budaya Kearifan Lokal Daerah',
+      arkasCode: '03.03.04',
+      targetIndicator: '100% siswa aktif berpartisipasi dalam projek P5 tiap semester; gotong royong dan kemandirian meningkat.',
       defaultBudget: 3500000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
@@ -568,23 +580,23 @@ export function generateRktFromRapor(
       pic: 'Koordinator P5 & Pembina Kesiswaan',
     },
     'D.1': {
-      rootCause: 'Refleksi pembelajaran dan supervisi klinis antar rekan sejawat belum berjalan berkala dan terstruktur.',
-      programName: 'Optimalisasi Komunitas Belajar (Kombel) Guru Intra-Satuan Pendidikan',
-      activityName: 'Diseminasi Berbagi Praktik Baik Pembelajaran Berdiferensiasi & Telaah Modul Ajar di Kombel',
-      arkasCode: 'NON-ARKAS',
-      targetIndicator: 'Pertemuan Kombel rutin dwimingguan tanpa biaya; 100% guru menyusun asesmen formatif berdiferensiasi.',
-      defaultBudget: 0,
-      defaultSource: 'Non-Biaya',
-      isNonArkas: true,
-      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
-      pic: 'Ketua Komunitas Belajar Guru',
+      rootCause: 'Perencanaan perangkat ajar terdiferensiasi dan asesmen diagnostik lintas guru belum terstandar merata.',
+      programName: 'Peningkatan Kualitas Perencanaan Pembelajaran Aktif & Asesmen Kelas',
+      activityName: 'Workshop Penyusunan Perangkat Ajar Berdiferensiasi & Asesmen Formatif melalui Forum KKG/Kombel',
+      arkasCode: '02.06.01',
+      targetIndicator: '100% guru menyusun modul ajar berdiferensiasi dan melaksanakan asesmen awal diagnostik per semester.',
+      defaultBudget: 1800000,
+      defaultSource: 'BOS Reguler',
+      isNonArkas: false,
+      timeline: ['TW1', 'TW3'],
+      pic: 'Waka Kurikulum & Ketua Kombel',
     },
     'D.4': {
       rootCause: 'Mekanisme pencegahan dan kanal pelaporan perundungan serta kekerasan belum tersosialisasi menyeluruh.',
       programName: 'Program Pencegahan dan Penanganan Kekerasan di Lingkungan Satuan Pendidikan (PPKSP)',
-      activityName: 'Penguatan Kapasitas TPPK Satuan Pendidikan & Pengadaan Media Kampanye Sekolah Ramah Anak',
-      arkasCode: '02.06.01',
-      targetIndicator: 'Nol kasus perundungan; tersedianya kotak curhat aman dan SOP penanganan PPKSP aktif.',
+      activityName: 'Penyelenggaraan Pencegahan Perundungan, Penguatan Kapasitas TPPK, dan Kampanye Sekolah Ramah Anak',
+      arkasCode: '03.03.11',
+      targetIndicator: 'Nol kasus perundungan; tersedianya kanal pelaporan aman dan SOP penanganan PPKSP aktif.',
       defaultBudget: 1500000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
@@ -594,37 +606,49 @@ export function generateRktFromRapor(
     'D.8': {
       rootCause: 'Minimnya ruang perjumpaan lintas budaya dan kesadaran toleransi keberagaman sosial di sekolah.',
       programName: 'Program Penguatan Kebinekaan Global & Toleransi Inklusif',
-      activityName: 'Pekan Festival Kebinekaan: Busana Adat Nusantara, Kuliner Tradisional, dan Dialog Inklusif',
-      arkasCode: '03.04.05',
+      activityName: 'Penyelenggaraan Projek Kebinekaan: Gelar Budaya Nusantara, Kuliner Tradisional, dan Dialog Inklusif',
+      arkasCode: '03.03.04',
       targetIndicator: 'Indeks iklim kebinekaan stabil pada predikat Sangat Baik (>85.0); kesadaran toleransi 100%.',
       defaultBudget: 2000000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
-      timeline: ['TW3'],
-      pic: 'Guru PPKn & Kesiswaan',
+      timeline: ['TW3', 'TW4'],
+      pic: 'Guru PPKn & Pembina Kesiswaan',
     },
     'D.10': {
-      rootCause: 'Pendidik belum terlatih menyusun modifikasi kurikulum individual bagi peserta didik berkebutuhan khusus.',
+      rootCause: 'Pendidik belum terlatih menyusun modifikasi kurikulum individual serta keterbatasan media taktil bagi ABK.',
       programName: 'Program Peningkatan Layanan Pendidikan Inklusif & Ramah Disabilitas',
-      activityName: 'Bimtek Identifikasi Asesmen ABK & Pengadaan Media Pembelajaran Taktil / Visual Ramah Anak',
-      arkasCode: '02.04.05',
-      targetIndicator: 'Tersusunnya rencana pembelajaran individual (PPI) untuk seluruh anak disabilitas & sarana ramah anak.',
+      activityName: 'Pengadaan Media Pembelajaran Adaptif Inklusif & Pengayaan TIK Layanan Disabilitas',
+      arkasCode: '03.03.18',
+      targetIndicator: 'Tersusunnya rencana pembelajaran individual (PPI) & tersedianya sarana belajar ramah disabilitas.',
       defaultBudget: 2500000,
       defaultSource: 'BOS Reguler',
       isNonArkas: false,
       timeline: ['TW2', 'TW3'],
       pic: 'Guru Pendamping Khusus & Waka Kesiswaan',
     },
+    'E.2': {
+      rootCause: 'Proporsi pembelanjaan BOSP untuk peningkatan mutu guru dan tenaga kependidikan perlu dioptimalkan.',
+      programName: 'Kemampuan kepala sekolah dalam mengembangkan dan mengelola anggaran sekolah untuk peningkatan kompetensi PTK',
+      activityName: 'Pengembangan Profesi Pendidik dan Tenaga Kependidikan Berbasis Kebutuhan Mutu Rapor Pendidikan',
+      arkasCode: '04.06.05',
+      targetIndicator: 'Minimal 10% porsi anggaran pembenahan diarahkan ke peningkatan kompetensi guru & tendik.',
+      defaultBudget: 3000000,
+      defaultSource: 'BOS Reguler',
+      isNonArkas: false,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Kepala Sekolah & Bendahara BOS',
+    },
   };
 
-  // Kegiatan Tidak Berbayar (Non-ARKAS) pendamping per indikator untuk pembiasaan & kolaborasi sekolah
+  // Kegiatan Tidak Berbayar (Non-ARKAS / Rp 0) pendamping setahun penuh (TW1-TW4) per indikator Rapor Pendidikan
   const nonArkasBlueprintMap: Record<string, BlueprintEntry> = {
     'A.1': {
       rootCause: 'Kebiasaan membaca harian sebelum pembelajaran belum terjadwal konsisten di seluruh kelas.',
       programName: 'Pembiasaan Literasi Sekolah Tanpa Biaya (Non-ARKAS)',
-      activityName: 'Gerakan Membaca Senyap 15 Menit Sebelum Jam Pelajaran & Tantangan Resensi Lisan Siswa',
+      activityName: 'Gerakan Membaca Senyap 15 Menit Sebelum Jam Pelajaran, Kunjungan Wajib Perpustakaan & Resensi Lisan Siswa',
       arkasCode: 'NON-ARKAS',
-      targetIndicator: '100% rombel melaksanakan pembiasaan baca 15 menit setiap pagi tanpa beban anggaran.',
+      targetIndicator: '100% rombel melaksanakan pembiasaan baca 15 menit setiap pagi sepanjang tahun tanpa beban anggaran.',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
       isNonArkas: true,
@@ -633,10 +657,10 @@ export function generateRktFromRapor(
     },
     'A.2': {
       rootCause: 'Guru membutuhkan pendampingan sejawat berkelanjutan dalam merancang soal pemecahan masalah numerasi.',
-      programName: 'Pendampingan Sejawat & Belajar Mandiri PMM Numerasi (Non-ARKAS)',
-      activityName: 'Peer-Coaching Guru & Bedah Topik Numerasi Kontekstual pada Pertemuan Kombel Mingguan',
+      programName: 'Pendampingan Sejawat & Belajar Mandiri Ruang GTK Numerasi (Non-ARKAS)',
+      activityName: 'Peer-Coaching Guru & Bedah Topik Numerasi Kontekstual pada Pertemuan Kombel Dwi-Mingguan',
       arkasCode: 'NON-ARKAS',
-      targetIndicator: 'Minimal 12 sesi peer-coaching per tahun terlaksana secara swadaya dengan Rp 0.',
+      targetIndicator: 'Minimal 16 sesi peer-coaching per tahun ajaran (TW1–TW4) terlaksana secara swadaya dengan Rp 0.',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
       isNonArkas: true,
@@ -646,38 +670,74 @@ export function generateRktFromRapor(
     'A.3': {
       rootCause: 'Penguatan karakter gotong royong dan disiplin positif perlu pembiasaan harian yang konsisten.',
       programName: 'Pembiasaan Budaya Positif & Karakter Pelajar Pancasila (Non-ARKAS)',
-      activityName: 'Program Jumat Bersih Gotong Royong, Piket Kepemimpinan Siswa, dan Apresiasi Perilaku Baik',
+      activityName: 'Program Jumat Bersih Gotong Royong, Piket Kepemimpinan Siswa, Ibadah Bersama & Apresiasi Perilaku Baik',
       arkasCode: 'NON-ARKAS',
-      targetIndicator: 'Terlaksananya pembiasaan budaya positif mingguan di seluruh kelas dengan partisipasi 100% siswa.',
+      targetIndicator: 'Terlaksananya pembiasaan budaya positif mingguan sepanjang TW1–TW4 dengan partisipasi 100% siswa.',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
       isNonArkas: true,
       timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Pembina Kesiswaan & Wali Kelas',
     },
+    'D.1': {
+      rootCause: 'Refleksi pembelajaran dan supervisi klinis antar rekan sejawat perlu dijadwalkan rutin sepanjang tahun.',
+      programName: 'Optimalisasi Komunitas Belajar (Kombel) Guru Intra-Satuan Pendidikan (Non-ARKAS)',
+      activityName: 'Diseminasi Berbagi Praktik Baik Pembelajaran Berdiferensiasi, Observasi Kelas Sejawat & Supervisi Klinis',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Pertemuan Kombel rutin dwi-mingguan (TW1–TW4) tanpa biaya; 100% guru melakukan refleksi praktik mengajar.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Ketua Komunitas Belajar & Kepala Sekolah',
+    },
     'D.4': {
       rootCause: 'Pengawasan area rawan perundungan dan edukasi anti-kekerasan perlu keterlibatan rutin warga sekolah.',
       programName: 'Satgas & Edukasi Pencegahan Perundungan Berbasis Pembiasaan (Non-ARKAS)',
-      activityName: 'Piket Pemantauan Lingkungan Ramah Anak & Sesi Refleksi Anti-Perundungan Saat Upacara/Apel',
+      activityName: 'Piket Pemantauan Lingkungan Ramah Anak, Apel Deklarasi Anti-Perundungan & Sesi Konseling Wali Kelas',
       arkasCode: 'NON-ARKAS',
-      targetIndicator: 'Jadwal piket TPPK berjalan setiap pekan dan kesepakatan kelas anti-perundungan terpasang.',
+      targetIndicator: 'Jadwal piket TPPK berjalan setiap pekan sepanjang TW1–TW4 dan kesepakatan kelas anti-perundungan aktif.',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
       isNonArkas: true,
       timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Satgas TPPK & Guru Piket',
     },
+    'D.8': {
+      rootCause: 'Sikap saling menghargai keberagaman perlu dipraktikkan terus-menerus dalam keseharian kelas.',
+      programName: 'Pembiasaan Dialog Toleransi, Moderasi, dan Kebersamaan Warga Sekolah (Non-ARKAS)',
+      activityName: 'Rotasi Kelompok Belajar Lintas Latar Belakang, Pojok Cerita Daerah Nusantara & Apel Kebangsaan Bulanan',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Terwujudnya budaya kelas inklusif tanpa diskriminasi sepanjang TW1–TW4 secara mandiri (Rp 0).',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Guru PPKn & Seluruh Wali Kelas',
+    },
     'D.10': {
       rootCause: 'Kolaborasi guru kelas, teman sebaya, dan orang tua ABK dapat dioptimalkan tanpa biaya tambahan.',
       programName: 'Pendampingan Teman Sebaya & Forum Konsultasi Orang Tua Inklusif (Non-ARKAS)',
-      activityName: 'Penyusunan PPI Kolaboratif Bersama Orang Tua & Program Sahabat Inklusi Antar Siswa',
+      activityName: 'Penyusunan PPI Kolaboratif Bersama Orang Tua & Program Sahabat Inklusi Antar Peserta Didik',
       arkasCode: 'NON-ARKAS',
-      targetIndicator: '100% siswa berkebutuhan khusus memiliki pendamping sebaya dan catatan perkembangan bulanan.',
+      targetIndicator: '100% siswa berkebutuhan khusus memiliki pendamping sebaya dan catatan perkembangan bulanan (TW1–TW4).',
       defaultBudget: 0,
       defaultSource: 'Non-Biaya',
       isNonArkas: true,
       timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Guru Kelas & Koordinator Inklusi',
+    },
+    'E.2': {
+      rootCause: 'Transparansi dan refleksi pemanfaatan sumber daya sekolah perlu melibatkan dewan guru dan komite.',
+      programName: 'Rapat Evaluasi Rutin Transparansi Mutu & Pemanfaatan Sumber Daya Sekolah (Non-ARKAS)',
+      activityName: 'Forum Review Capaian Anggaran Triwulanan Bersama Komite Sekolah & Dewan Guru Tanpa Biaya Tambahan',
+      arkasCode: 'NON-ARKAS',
+      targetIndicator: 'Publikasi papan transparansi BOS/ARKAS serta berita acara evaluasi dilaksanakan tiap akhir triwulan.',
+      defaultBudget: 0,
+      defaultSource: 'Non-Biaya',
+      isNonArkas: true,
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
+      pic: 'Kepala Sekolah & Komite Sekolah',
     },
   };
 
@@ -692,12 +752,12 @@ export function generateRktFromRapor(
       rootCause: `Analisis indikator ${ind.name} menunjukkan perlunya peningkatan strategi pengelolaan dan pembelajaran.`,
       programName: `Peningkatan Kualitas dan Ketercapaian Indikator ${ind.name}`,
       activityName: `Workshop Penyusunan Program Pembenahan Indikator ${ind.code}`,
-      arkasCode: ind.score < 70 ? '02.04.09' : 'NON-ARKAS',
+      arkasCode: ind.score < 70 ? '04.06.05' : 'NON-ARKAS',
       targetIndicator: `Peningkatan capaian indikator ${ind.code} minimal +3.0 poin pada evaluasi berikutnya.`,
       defaultBudget: ind.score < 70 ? 3000000 : 0,
       defaultSource: ind.score < 70 ? 'BOS Reguler' : 'Non-Biaya',
       isNonArkas: ind.score >= 70,
-      timeline: ['TW1', 'TW2'],
+      timeline: ['TW1', 'TW2', 'TW3', 'TW4'],
       pic: 'Tim Pengembang Kurikulum',
     };
 
@@ -741,12 +801,12 @@ export function generateRktFromRapor(
       personInCharge: blueprint.pic,
       notes: isNonArkasItem
         ? `Kegiatan Non-ARKAS (Rp 0) otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`
-        : `Dihasilkan otomatis dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`,
+        : `Kegiatan ARKAS 4 Kemendikdasmen dari skor Rapor Pendidikan: ${ind.score} (${scoreCategory})`,
     });
 
-    // Also add complementary unpaid Non-ARKAS activity when configured for the indicator
+    // Add complementary unpaid Non-ARKAS activity for full-year sustainability
     const nonArkasEntry = nonArkasBlueprintMap[ind.code];
-    if (nonArkasEntry) {
+    if (nonArkasEntry && !isNonArkasItem) {
       if (priorityLevel === 'Prioritas Utama (P1)') {
         p1Count += 1;
       } else if (priorityLevel === 'Prioritas Lanjutan (P2)') {
@@ -771,7 +831,7 @@ export function generateRktFromRapor(
         isNonArkas: true,
         quarterTimeline: nonArkasEntry.timeline,
         personInCharge: nonArkasEntry.pic,
-        notes: `Kegiatan Tidak Berbayar (Non-ARKAS / Rp 0) pendamping indikator ${ind.code}`,
+        notes: `Kegiatan Tidak Berbayar (Non-ARKAS / Rp 0) sepanjang tahun untuk indikator ${ind.code}`,
       });
     }
   }
@@ -809,5 +869,156 @@ export function generateRktFromRapor(
     items,
   };
 }
+
+export interface YearRoundInspirationItem {
+  id: string;
+  quarter: 'TW1' | 'TW2' | 'TW3' | 'TW4';
+  quarterLabel: string;
+  monthsLabel: string;
+  raporCode: string;
+  raporName: string;
+  butuhBiaya: 'ya' | 'tidak';
+  arkasCode: string;
+  kegiatanBenahi: string;
+  penjelasanImplementasi: string;
+  kegiatanArkasNon: string;
+  estimatedBudget: number;
+  personInCharge: string;
+}
+
+/**
+ * Generates curated 1-fiscal-year (TW1–TW4) activity inspirations grounded in active Rapor Pendidikan scores,
+ * covering both paid ARKAS 4 Kemendikdasmen activities and zero-cost Non-ARKAS activities.
+ */
+export function buildFullYearRktInspirations(
+  indicators: MinimalRaporIndicator[]
+): YearRoundInspirationItem[] {
+  const byCode = new Map(indicators.map((ind) => [ind.code.toUpperCase(), ind]));
+  const nameOf = (code: string, fallback: string) => byCode.get(code)?.name || fallback;
+
+  return [
+    {
+      id: 'insp-tw1-paid-numerasi',
+      quarter: 'TW1',
+      quarterLabel: 'Triwulan I',
+      monthsLabel: 'Januari – Maret',
+      raporCode: 'A.2',
+      raporName: nameOf('A.2', 'Kemampuan Numerasi'),
+      butuhBiaya: 'ya',
+      arkasCode: '04.06.05',
+      kegiatanBenahi: 'Peningkatan kompetensi PTK melalui pelatihan numerasi kontekstual & asesmen awal',
+      penjelasanImplementasi: 'Bimtek guru kelas dalam penyusunan soal pemecahan masalah numerasi dan strategi diferensiasi awal tahun',
+      kegiatanArkasNon: 'Peningkatan Kompetensi Guru (ARKAS 4 Kemendikdasmen)',
+      estimatedBudget: 3500000,
+      personInCharge: 'Waka Kurikulum & Tim Numerasi',
+    },
+    {
+      id: 'insp-tw1-free-literasi',
+      quarter: 'TW1',
+      quarterLabel: 'Triwulan I',
+      monthsLabel: 'Januari – Maret',
+      raporCode: 'A.1',
+      raporName: nameOf('A.1', 'Kemampuan Literasi'),
+      butuhBiaya: 'tidak',
+      arkasCode: 'NON-ARKAS',
+      kegiatanBenahi: 'Pembiasaan budaya baca harian terjadwal tanpa pembiayaan anggaran',
+      penjelasanImplementasi: 'Pelaksanaan membaca senyap 15 menit sebelum pembelajaran & diskusi resensi lisan bergiliran di kelas',
+      kegiatanArkasNon: 'Penyelenggaraan (Non-ARKAS): Gerakan Literasi Sekolah Pagi Tanpa Biaya',
+      estimatedBudget: 0,
+      personInCharge: 'Wali Kelas & Tim Literasi',
+    },
+    {
+      id: 'insp-tw2-paid-buku',
+      quarter: 'TW2',
+      quarterLabel: 'Triwulan II',
+      monthsLabel: 'April – Juni',
+      raporCode: 'A.1',
+      raporName: nameOf('A.1', 'Kemampuan Literasi'),
+      butuhBiaya: 'ya',
+      arkasCode: '02.02.01',
+      kegiatanBenahi: 'Pengembangan perpustakaan sekolah dan pojok baca kelas ramah anak',
+      penjelasanImplementasi: 'Pengadaan koleksi buku bacaan bermutu non-teks berjenjang dan penataan sudut baca tiap rombel',
+      kegiatanArkasNon: 'Pengembangan Perpustakaan & Penyediaan Buku Bacaan Bermutu',
+      estimatedBudget: 4500000,
+      personInCharge: 'Kepala Perpustakaan & Bendahara BOS',
+    },
+    {
+      id: 'insp-tw2-free-kombel',
+      quarter: 'TW2',
+      quarterLabel: 'Triwulan II',
+      monthsLabel: 'April – Juni',
+      raporCode: 'D.1',
+      raporName: nameOf('D.1', 'Kualitas Pembelajaran'),
+      butuhBiaya: 'tidak',
+      arkasCode: 'NON-ARKAS',
+      kegiatanBenahi: 'Optimalisasi Komunitas Belajar (Kombel) dan observasi rekan sejawat',
+      penjelasanImplementasi: 'Pertemuan Kombel dwi-mingguan membedah modul ajar Ruang GTK dan refleksi praktik baik tanpa anggaran BOS',
+      kegiatanArkasNon: 'Penyelenggaraan (Non-ARKAS): Kombel Intra-Sekolah & Peer Coaching Guru',
+      estimatedBudget: 0,
+      personInCharge: 'Ketua Kombel & Kepala Sekolah',
+    },
+    {
+      id: 'insp-tw3-paid-ppksp',
+      quarter: 'TW3',
+      quarterLabel: 'Triwulan III',
+      monthsLabel: 'Juli – September',
+      raporCode: 'D.4',
+      raporName: nameOf('D.4', 'Iklim Keamanan Satuan Pendidikan'),
+      butuhBiaya: 'ya',
+      arkasCode: '03.03.11',
+      kegiatanBenahi: 'Penguatan Tim Pencegahan dan Penanganan Kekerasan (TPPK) pada tahun ajaran baru',
+      penjelasanImplementasi: 'Sosialisasi PPKSP kepada orang tua dan siswa baru serta pengadaan papan informasi/kanal aduan ramah anak',
+      kegiatanArkasNon: 'Penerapan Program Pencegahan Perundungan & Penanganan Kekerasan (PPKSP)',
+      estimatedBudget: 1500000,
+      personInCharge: 'Satgas TPPK & Pembina Kesiswaan',
+    },
+    {
+      id: 'insp-tw3-free-inklusi',
+      quarter: 'TW3',
+      quarterLabel: 'Triwulan III',
+      monthsLabel: 'Juli – September',
+      raporCode: 'D.10',
+      raporName: nameOf('D.10', 'Iklim Inklusivitas & Disabilitas'),
+      butuhBiaya: 'tidak',
+      arkasCode: 'NON-ARKAS',
+      kegiatanBenahi: 'Layanan pendampingan inklusif kolaboratif bersama teman sebaya & orang tua',
+      penjelasanImplementasi: 'Penyusunan Program Pembelajaran Individual (PPI) swadaya dan program sahabat inklusi antar peserta didik',
+      kegiatanArkasNon: 'Penyelenggaraan (Non-ARKAS): Sahabat Inklusi & Konsultasi Orang Tua ABK',
+      estimatedBudget: 0,
+      personInCharge: 'Koordinator Inklusi & Wali Kelas',
+    },
+    {
+      id: 'insp-tw4-paid-p5',
+      quarter: 'TW4',
+      quarterLabel: 'Triwulan IV',
+      monthsLabel: 'Oktober – Desember',
+      raporCode: 'A.3',
+      raporName: nameOf('A.3', 'Karakter Peserta Didik'),
+      butuhBiaya: 'ya',
+      arkasCode: '03.03.04',
+      kegiatanBenahi: 'Pengembangan karakter Pelajar Pancasila melalui projek kontekstual dan gelar karya',
+      penjelasanImplementasi: 'Pelaksanaan Gelar Karya P5 & Pekan Kebinekaan akhir tahun anggaran serta asesmen refleksi karakter siswa',
+      kegiatanArkasNon: 'Pengembangan Pembelajaran Berbasis Projek (P5) & Kebinekaan',
+      estimatedBudget: 3500000,
+      personInCharge: 'Koordinator P5 & Guru PPKn',
+    },
+    {
+      id: 'insp-tw4-free-evaluasi',
+      quarter: 'TW4',
+      quarterLabel: 'Triwulan IV',
+      monthsLabel: 'Oktober – Desember',
+      raporCode: 'D.8',
+      raporName: nameOf('D.8', 'Iklim Kebinekaan'),
+      butuhBiaya: 'tidak',
+      arkasCode: 'NON-ARKAS',
+      kegiatanBenahi: 'Refleksi iklim kebinekaan dan evaluasi akhir tahun RKT bersama komite sekolah',
+      penjelasanImplementasi: 'Apel kebangsaan, rotasi kelompok belajar inklusif, dan forum tinjauan capaian RKT akhir tahun tanpa biaya',
+      kegiatanArkasNon: 'Penyelenggaraan (Non-ARKAS): Dialog Toleransi & Evaluasi Mutu Akhir Tahun',
+      estimatedBudget: 0,
+      personInCharge: 'Kepala Sekolah, Guru PPKn & Komite',
+    },
+  ];
+}
+
 
 

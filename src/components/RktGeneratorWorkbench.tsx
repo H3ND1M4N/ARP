@@ -91,7 +91,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
     raporName: 'Kemampuan Numerasi',
     programName: 'Program Penguatan Numerasi Kelas Awal',
     activityName: '',
-    arkasCode: '02.04.03',
+    arkasCode: '04.06.05',
     targetIndicator: '',
     estimatedBudget: 2500000,
     fundingSource: 'BOS Reguler' as 'BOS Reguler' | 'BOS Kinerja' | 'Non-Biaya' | 'APBD',
@@ -193,7 +193,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       programName: asNonArkas
         ? 'Pembiasaan & Kolaborasi Mutu Sekolah (Non-ARKAS)'
         : 'Program Penguatan Numerasi Kelas Awal',
-      arkasCode: asNonArkas ? 'NON-ARKAS' : '02.04.03',
+      arkasCode: asNonArkas ? 'NON-ARKAS' : '04.06.05',
       estimatedBudget: asNonArkas ? 0 : 2500000,
       fundingSource: asNonArkas ? 'Non-Biaya' : 'BOS Reguler',
     }));
@@ -204,7 +204,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
     setNewIsNonArkas(checked);
     setNewItemData((prev) => ({
       ...prev,
-      arkasCode: checked ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '02.04.03' : prev.arkasCode,
+      arkasCode: checked ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '04.06.05' : prev.arkasCode,
       estimatedBudget: checked ? 0 : prev.estimatedBudget === 0 ? 2500000 : prev.estimatedBudget,
       fundingSource: checked ? 'Non-Biaya' : prev.fundingSource === 'Non-Biaya' ? 'BOS Reguler' : prev.fundingSource,
     }));
@@ -251,7 +251,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
       raporName: 'Kemampuan Numerasi',
       programName: 'Program Penguatan Numerasi Kelas Awal',
       activityName: '',
-      arkasCode: '02.04.03',
+      arkasCode: '04.06.05',
       targetIndicator: '',
       estimatedBudget: 2500000,
       fundingSource: 'BOS Reguler',
@@ -844,7 +844,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                                   fundingSource: src,
                                   isNonArkas: src === 'Non-Biaya',
                                   estimatedBudget: src === 'Non-Biaya' ? 0 : prev.estimatedBudget || 1500000,
-                                  arkasCode: src === 'Non-Biaya' ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '02.04.03' : prev.arkasCode,
+                                  arkasCode: src === 'Non-Biaya' ? 'NON-ARKAS' : prev.arkasCode === 'NON-ARKAS' ? '04.06.05' : prev.arkasCode,
                                 }));
                               }}
                               className="w-full p-1 border border-slate-300 rounded text-[10px]"
@@ -1088,7 +1088,7 @@ export const RktGeneratorWorkbench: React.FC<RktGeneratorWorkbenchProps> = ({
                       setNewItemData((prev) => ({ ...prev, arkasCode: e.target.value }))
                     }
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                    placeholder={newIsNonArkas ? 'NON-ARKAS' : '02.04.03'}
+                    placeholder={newIsNonArkas ? 'NON-ARKAS' : '04.06.05'}
                   />
                 </div>
 

@@ -168,6 +168,11 @@ export const RktUploadTab: React.FC<RktUploadTabProps> = ({
           school={school}
           indicators={indicators}
           rktItems={rktItems ?? []}
+          onAddInspirationItem={(newItem) => {
+            if (onRktItemsChange) {
+              onRktItemsChange([...(rktItems ?? []), newItem]);
+            }
+          }}
           academicYear="2026/2027"
         />
       ) : (

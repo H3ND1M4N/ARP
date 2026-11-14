@@ -521,6 +521,7 @@ export default function App() {
             school={currentSchool}
             indicators={raporIndicators}
             rktItems={rktItems}
+            onAddInspirationItem={(newItem) => setRktItems((prev) => [...prev, newItem])}
             academicYear="2026/2027"
           />
         )}

@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import {
   OFFICIAL_RKT_COLUMNS,
   mapRaporCodeToSnp,
   mapRktItemsToOfficialRows,
   buildOfficialRktSheetMatrix,
   createOfficialRktWorkbook,
+  createOfficialRktBuffer,
 } from './rktOfficialExport';
 import { generateRktFromRapor } from './petaMutuMath';
 
@@ -29,14 +30,14 @@ test('OFFICIAL_RKT_COLUMNS preserves exact 9 columns from Format_RKT_2026.xlsx',
 });
 
 test('mapRaporCodeToSnp maps Rapor Pendidikan codes to SNP names correctly', () => {
-  assert.equal(mapRaporCodeToSnp('A.1', '03.05.01'), 'STANDAR SARANA DAN PRASARANA');
-  assert.equal(mapRaporCodeToSnp('A.2', '02.04.03'), 'STANDAR PTK');
+  assert.equal(mapRaporCodeToSnp('A.1', '02.02.01'), 'STANDAR ISI');
+  assert.equal(mapRaporCodeToSnp('A.2', '04.06.05'), 'STANDAR PTK');
   assert.equal(mapRaporCodeToSnp('D.1', 'NON-ARKAS'), 'STANDAR PROSES');
-  assert.equal(mapRaporCodeToSnp('D.4', '02.06.01'), 'STANDAR PENGELOLAAN');
+  assert.equal(mapRaporCodeToSnp('D.4', '03.03.11'), 'STANDAR PENGELOLAAN');
   assert.equal(mapRaporCodeToSnp('E.2', '04.06.05'), 'STANDAR PEMBIAYAAN');
 });
 
-test('mapRktItemsToOfficialRows preserves indicators and applies Ya/Tidak and empty Kode for Non-ARKAS', () => {
+test('mapRktItemsToOfficialRows preserves indicators and applies ya/tidak and empty Kode for Non-ARKAS', () => {
   const rkt = generateRktFromRapor(
     [
       { code: 'A.1', name: 'Kemampuan Literasi', score: 78.4, label: 'Baik' },
@@ -51,27 +52,29 @@ test('mapRktItemsToOfficialRows preserves indicators and applies Ya/Tidak and em
   const rows = mapRktItemsToOfficialRows(rkt.items);
   assert.equal(rows.length, rkt.items.length);
 
-  // Paid ARKAS row checks
-  const paidRow = rows.find((r) => r.identifikasi === 'A.2 Kemampuan Numerasi' && r.butuhBiaya === 'Ya');
+  // Paid ARKAS 4 Kemendikdasmen row checks
+  const paidRow = rows.find((r) => r.identifikasi === 'A.2 Kemampuan Numerasi' && r.butuhBiaya === 'ya');
   assert.ok(paidRow);
-  assert.equal(paidRow?.butuhBiaya, 'Ya');
-  assert.match(paidRow!.kodeArkasNon, /^02\.04\.03/);
+  assert.equal(paidRow?.butuhBiaya, 'ya');
+  assert.equal(paidRow?.kodeArkasNon, '04.06.05. (Standar PTK)');
   assert.equal(paidRow?.namaSnp, 'STANDAR PTK');
+  assert.equal(paidRow?.kegiatanArkasNon, 'Peningkatan Kompetensi Guru');
 
   // Unpaid Non-ARKAS row checks: Kode ARKAS/NON must be empty per sheet instructions
   const unpaidRow = rows.find(
-    (r) => r.identifikasi === 'D.1 Kualitas Pembelajaran' && r.butuhBiaya === 'Tidak'
+    (r) => r.identifikasi === 'D.1 Kualitas Pembelajaran' && r.butuhBiaya === 'tidak'
   );
   assert.ok(unpaidRow);
-  assert.equal(unpaidRow?.butuhBiaya, 'Tidak');
+  assert.equal(unpaidRow?.butuhBiaya, 'tidak');
   assert.equal(unpaidRow?.kodeArkasNon, '');
   assert.match(unpaidRow!.kegiatanArkasNon, /Non-ARKAS/);
 });
 
-test('createOfficialRktWorkbook creates sheet RKT with 9 columns and school metadata', () => {
+test('createOfficialRktWorkbook creates ExcelJS sheet RKT matching Format_RKT_2026.xlsx merges, styles, and round-trip buffer', async () => {
   const rkt = generateRktFromRapor(
     [
       { code: 'A.1', name: 'Kemampuan Literasi', score: 78.4, label: 'Baik' },
+      { code: 'A.2', name: 'Kemampuan Numerasi', score: 62.1, label: 'Sedang' },
       { code: 'D.1', name: 'Kualitas Pembelajaran', score: 72.8, label: 'Baik' },
     ],
     { npsn: '20536900', name: 'SD NEGERI GUNUNGSARI 04 BATU' },
@@ -84,27 +87,70 @@ test('createOfficialRktWorkbook creates sheet RKT with 9 columns and school meta
     officialRows
   );
 
-  // Every row in the matrix has exact 9 columns
+  // Every row in the matrix has exact 9 columns and school identity aligns at column D (index 3)
   for (const row of matrix) {
     assert.equal(row.length, 9);
   }
-
   assert.equal(matrix[0][0], 'LEMBAR RENCANA KERJA TAHUNAN (RKT)');
   assert.equal(matrix[2][0], 'Nama Satuan');
-  assert.equal(matrix[2][2], 'SD NEGERI GUNUNGSARI 04 BATU');
+  assert.equal(matrix[2][3], 'SD NEGERI GUNUNGSARI 04 BATU');
   assert.equal(matrix[3][0], 'NPSN');
-  assert.equal(matrix[3][2], '20536900');
+  assert.equal(matrix[3][3], '20536900');
 
-  const wb = createOfficialRktWorkbook(
+  // Generate real ExcelJS .xlsx buffer and load back to inspect styles, merges, and borders
+  const buffer = await createOfficialRktBuffer(
     { npsn: '20536900', name: 'SD NEGERI GUNUNGSARI 04 BATU' },
     rkt.items
   );
-  assert.deepEqual(wb.SheetNames, ['RKT']);
+  assert.ok(buffer.byteLength > 2000);
 
-  const sheet = wb.Sheets['RKT'];
+  const loaded = new ExcelJS.Workbook();
+  await loaded.xlsx.load(buffer.buffer as ArrayBuffer);
+
+  assert.equal(loaded.worksheets.length, 1);
+  const sheet = loaded.getWorksheet('RKT');
   assert.ok(sheet);
-  const range = XLSX.utils.decode_range(sheet['!ref']!);
-  // Columns 0..8 -> exact 9 columns (A..I)
-  assert.equal(range.s.c, 0);
-  assert.equal(range.e.c, 8);
+
+  // Column count must be strictly 9
+  assert.equal(sheet.columnCount, 9);
+
+  // Merges: A1:I2, A3:C3, D3:I3, A4:C4, D4:I4
+  const merges = sheet.model.merges || [];
+  assert.ok(merges.includes('A1:I2'));
+  assert.ok(merges.includes('A3:C3'));
+  assert.ok(merges.includes('D3:I3'));
+  assert.ok(merges.includes('A4:C4'));
+  assert.ok(merges.includes('D4:I4'));
+
+  // Title styling
+  const titleCell = sheet.getCell('A1');
+  assert.equal(titleCell.value, 'LEMBAR RENCANA KERJA TAHUNAN (RKT)');
+  assert.equal(titleCell.font?.bold, true);
+  assert.equal(titleCell.font?.underline, true);
+  assert.equal(titleCell.alignment?.horizontal, 'center');
+
+  // Identity values
+  assert.equal(sheet.getCell('A3').value, 'Nama Satuan');
+  assert.equal(sheet.getCell('D3').value, 'SD NEGERI GUNUNGSARI 04 BATU');
+  assert.equal(sheet.getCell('A4').value, 'NPSN');
+  assert.equal(sheet.getCell('D4').value, '20536900');
+
+  // Row 6 Header RichText & Fill & Borders
+  const b6 = sheet.getCell('B6');
+  assert.equal(b6.border?.top?.style, 'thin');
+  assert.equal(b6.border?.left?.style, 'thin');
+  assert.equal(b6.alignment?.wrapText, true);
+
+  // Verify Row 7 data border & wrapText
+  const a7 = sheet.getCell('A7');
+  assert.equal(a7.value, '1.');
+  assert.equal(a7.border?.bottom?.style, 'thin');
+  assert.equal(sheet.getCell('G7').alignment?.horizontal, 'center');
+
+  // Verify direct workbook API as well
+  const wb = await createOfficialRktWorkbook(
+    { npsn: '20536900', name: 'SD NEGERI GUNUNGSARI 04 BATU' },
+    rkt.items
+  );
+  assert.equal(wb.getWorksheet('RKT')?.rowCount, 6 + rkt.items.length);
 });

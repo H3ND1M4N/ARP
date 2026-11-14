@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { ARKAS_KEMENDIKDASMEN_CATALOG } from '../data/simantapData';
 import { RktActionItem } from './petaMutuMath';
 
 export interface OfficialRktColumnDef {
@@ -6,6 +7,7 @@ export interface OfficialRktColumnDef {
   key: keyof OfficialRktRow;
   title: string;
   subtitle: string;
+  width: number;
 }
 
 export interface OfficialRktRow {
@@ -15,9 +17,11 @@ export interface OfficialRktRow {
   akarMasalah: string;
   kegiatanBenahi: string;
   penjelasanImplementasi: string;
-  butuhBiaya: 'Ya' | 'Tidak';
+  butuhBiaya: 'ya' | 'tidak';
   kodeArkasNon: string;
   kegiatanArkasNon: string;
+  quarterTimeline?: ('TW1' | 'TW2' | 'TW3' | 'TW4')[];
+  estimatedBudget?: number;
 }
 
 /**
@@ -29,18 +33,21 @@ export const OFFICIAL_RKT_COLUMNS: readonly OfficialRktColumnDef[] = [
     key: 'no',
     title: 'No',
     subtitle: '',
+    width: 6,
   },
   {
     colLetter: 'B',
     key: 'namaSnp',
     title: 'Nama SNP',
     subtitle: 'Tuliskan nama Standar Nasional Pendidikan',
+    width: 22,
   },
   {
     colLetter: 'C',
     key: 'identifikasi',
     title: 'Identifikasi',
     subtitle: 'Nama indikator yang menjadi prioritas perbaikan layanan di tahun mendatang',
+    width: 28,
   },
   {
     colLetter: 'D',
@@ -48,24 +55,28 @@ export const OFFICIAL_RKT_COLUMNS: readonly OfficialRktColumnDef[] = [
     title: 'Akar Masalah',
     subtitle:
       'Identifikasi akar masalah dari indikator yang ingin diperbaiki (dapat ditinjau dari indikator Rapor Pendidikan atau penyebab lain yang menurut Anda relevan)',
+    width: 34,
   },
   {
     colLetter: 'E',
     key: 'kegiatanBenahi',
     title: 'Kegiatan Benahi',
     subtitle: 'Kegiatan untuk menyelesaikan akar masalah',
+    width: 38,
   },
   {
     colLetter: 'F',
     key: 'penjelasanImplementasi',
     title: 'Penjelasan Implementasi Kegiatan',
     subtitle: 'Rincian kegiatan yang lebih spesifik sebagai turunan dari kegiatan benahi.',
+    width: 34,
   },
   {
     colLetter: 'G',
     key: 'butuhBiaya',
     title: 'Apakah Kegiatan Membutuhkan Biaya?',
     subtitle: 'Diisi dengan "Ya" / "Tidak".',
+    width: 20,
   },
   {
     colLetter: 'H',
@@ -73,6 +84,7 @@ export const OFFICIAL_RKT_COLUMNS: readonly OfficialRktColumnDef[] = [
     title: 'Kode ARKAS/NON',
     subtitle:
       'Masukkan kode rekening ARKAS jika Anda ingin menganggarkan kegiatan benahi ke ARKAS. Kosongi kode ini juga kegiatan tidak dibutuhkan biaya.',
+    width: 24,
   },
   {
     colLetter: 'I',
@@ -80,6 +92,7 @@ export const OFFICIAL_RKT_COLUMNS: readonly OfficialRktColumnDef[] = [
     title: 'Kegiatan ARKAS/NON',
     subtitle:
       'Padanan nama kegiatan jika Anda ingin menganggarkan kegiatan benahi ke ARKAS/NON.',
+    width: 34,
   },
 ] as const;
 
@@ -89,10 +102,14 @@ export function mapRaporCodeToSnp(raporCode: string, arkasCode?: string): string
 
   if (code.startsWith('E.')) return 'STANDAR PEMBIAYAAN';
   if (code === 'A.1') {
-    return arkas.startsWith('03.05') ? 'STANDAR SARANA DAN PRASARANA' : 'STANDAR KOMPETENSI LULUSAN';
+    if (arkas.startsWith('02.02')) return 'STANDAR ISI';
+    if (arkas.startsWith('03.05') || arkas.startsWith('05.')) return 'STANDAR SARANA DAN PRASARANA';
+    return 'STANDAR KOMPETENSI LULUSAN';
   }
   if (code === 'A.2') {
-    return arkas.startsWith('02.04') ? 'STANDAR PTK' : 'STANDAR KOMPETENSI LULUSAN';
+    if (arkas.startsWith('04.06') || arkas.startsWith('02.04')) return 'STANDAR PTK';
+    if (arkas.startsWith('03.')) return 'STANDAR PROSES';
+    return 'STANDAR KOMPETENSI LULUSAN';
   }
   if (code === 'A.3') return 'STANDAR KOMPETENSI LULUSAN';
   if (code.startsWith('C.')) return 'STANDAR PTK';
@@ -101,6 +118,31 @@ export function mapRaporCodeToSnp(raporCode: string, arkasCode?: string): string
   if (code === 'D.10') return 'STANDAR PROSES';
   if (code.startsWith('B.')) return 'STANDAR PENILAIAN';
   return 'STANDAR PENGELOLAAN';
+}
+
+function resolveArkasStandardLabel(arkasCode: string, fallbackSnp: string): string {
+  const clean = arkasCode.trim();
+  const found = ARKAS_KEMENDIKDASMEN_CATALOG.find((entry) => entry.code === clean);
+  if (found) return found.standardLabel;
+
+  if (clean.startsWith('01.')) return 'Standar Kompetensi Lulusan';
+  if (clean.startsWith('02.')) return 'Standar Isi';
+  if (clean.startsWith('03.')) return 'Standar Proses';
+  if (clean.startsWith('04.')) return 'Standar PTK';
+  if (clean.startsWith('05.')) return 'Standar Sarpras';
+  if (clean.startsWith('06.')) return 'Standar Pengelolaan';
+  if (clean.startsWith('07.')) return 'Standar Pembiayaan';
+  if (clean.startsWith('08.')) return 'Standar Penilaian';
+
+  return fallbackSnp
+    .replace('STANDAR ', 'Standar ')
+    .replace(/\b\w+/g, (w) =>
+      w === 'PTK'
+        ? 'PTK'
+        : w === 'DAN'
+        ? 'dan'
+        : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
 }
 
 function getAkarMasalahSubCode(raporCode: string, rootCause: string): string {
@@ -126,41 +168,43 @@ function getOfficialEquivalentActivityName(item: RktActionItem, needsCost: boole
   if (!needsCost) {
     return `Penyelenggaraan (Non-ARKAS): ${item.activityName}`;
   }
+  const cleanArkas = (item.arkasCode || '').trim();
+  const catalogMatch = ARKAS_KEMENDIKDASMEN_CATALOG.find((c) => c.code === cleanArkas);
+  if (catalogMatch) {
+    if (cleanArkas === '04.06.05') return 'Peningkatan Kompetensi Guru';
+    return catalogMatch.name;
+  }
+
   const code = item.raporCode.trim().toUpperCase();
   const lookup: Record<string, string> = {
-    'A.1': 'Pengadaan Buku Pengayaan Literasi Non-Teks dan Revitalisasi Pojok Baca',
-    'A.2': 'Peningkatan Kompetensi Guru Numerasi & Pengadaan Alat Peraga Edukatif',
-    'A.3': 'Penyelenggaraan Kegiatan Projek Penguatan Profil Pelajar Pancasila (P5)',
-    'D.4': 'Penyelenggaraan: Pencegahan Perundungan, Kekerasan, dan Kampanye Sekolah Ramah Anak',
-    'D.8': 'Penyelenggaraan Pekan Budaya, Kebinekaan, dan Dialog Toleransi Inklusif',
-    'D.10': 'Pengembangan Layanan Pendidikan Inklusif & Penyediaan Media Ramah Disabilitas',
+    'A.1': 'Pengembangan Perpustakaan dan Penyediaan Buku Bacaan Bermutu',
+    'A.2': 'Peningkatan Kompetensi Guru & Pengembangan Kegiatan Literasi dan Numerasi',
+    'A.3': 'Pengembangan Pembelajaran Berbasis Projek (P5)',
+    'D.1': 'Kegiatan Diskusi Kolaborasi Pengembangan RPP/Modul Ajar (Kombel/KKG)',
+    'D.4': 'Penerapan Program Pencegahan Perundungan dan Penanganan Kekerasan (PPKSP)',
+    'D.8': 'Penyelenggaraan Pembelajaran Berbasis Projek Kebinekaan & Toleransi',
+    'D.10': 'Pengadaan Media Pembelajaran Adaptif & Pengayaan TIK Layanan Inklusif',
+    'E.2': 'Peningkatan Kompetensi Guru',
   };
   return lookup[code] || item.activityName;
 }
 
 /**
  * Converts active RKT items into exact 9-column Format_RKT_2026 rows
- * while preserving every indicator and obeying the Ya/Tidak + Kode ARKAS/NON rules.
+ * while preserving every indicator and obeying the ya/tidak + Kode ARKAS/NON rules.
  */
 export function mapRktItemsToOfficialRows(items: RktActionItem[]): OfficialRktRow[] {
   return items.map((item, idx) => {
     const isZeroCost =
       Boolean(item.isNonArkas) || item.fundingSource === 'Non-Biaya' || item.estimatedBudget <= 0;
-    const needsCost: 'Ya' | 'Tidak' = isZeroCost ? 'Tidak' : 'Ya';
+    const needsCost: 'ya' | 'tidak' = isZeroCost ? 'tidak' : 'ya';
     const snpName = mapRaporCodeToSnp(item.raporCode, item.arkasCode);
+    const arkasClean = (item.arkasCode || '').trim().replace(/\.$/, '');
     const cleanedArkas =
-      needsCost === 'Tidak'
+      needsCost === 'tidak'
         ? ''
-        : item.arkasCode && item.arkasCode !== 'NON-ARKAS'
-        ? `${item.arkasCode}. (${snpName
-            .replace('STANDAR ', 'Standar ')
-            .replace(/\b\w+/g, (w) =>
-              w === 'PTK' || w === 'DAN'
-                ? w === 'DAN'
-                  ? 'dan'
-                  : 'PTK'
-                : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-            )})`
+        : arkasClean && !arkasClean.toUpperCase().includes('NON-ARKAS')
+        ? `${arkasClean}. (${resolveArkasStandardLabel(arkasClean, snpName)})`
         : '';
 
     return {
@@ -172,7 +216,9 @@ export function mapRktItemsToOfficialRows(items: RktActionItem[]): OfficialRktRo
       penjelasanImplementasi: item.activityName,
       butuhBiaya: needsCost,
       kodeArkasNon: cleanedArkas,
-      kegiatanArkasNon: getOfficialEquivalentActivityName(item, needsCost === 'Ya'),
+      kegiatanArkasNon: getOfficialEquivalentActivityName(item, needsCost === 'ya'),
+      quarterTimeline: item.quarterTimeline,
+      estimatedBudget: item.estimatedBudget,
     };
   });
 }
@@ -187,8 +233,8 @@ export function buildOfficialRktSheetMatrix(
   const matrix: (string | number)[][] = [
     ['LEMBAR RENCANA KERJA TAHUNAN (RKT)', '', '', '', '', '', '', '', ''],
     ['', '', '', '', '', '', '', '', ''],
-    ['Nama Satuan', '', school.name, '', '', '', '', '', ''],
-    ['NPSN', '', school.npsn, '', '', '', '', '', ''],
+    ['Nama Satuan', '', '', school.name, '', '', '', '', ''],
+    ['NPSN', '', '', school.npsn, '', '', '', '', ''],
     ['', '', '', '', '', '', '', '', ''],
     OFFICIAL_RKT_COLUMNS.map((col) =>
       col.subtitle ? `${col.title}\n${col.subtitle}` : col.title
@@ -212,68 +258,259 @@ export function buildOfficialRktSheetMatrix(
   return matrix;
 }
 
-export function createOfficialRktWorkbook(
+const THIN_BLACK_BORDER: Partial<ExcelJS.Border> = {
+  style: 'thin',
+  color: { argb: 'FF000000' },
+};
+
+const ALL_THIN_BORDERS: Partial<ExcelJS.Borders> = {
+  top: THIN_BLACK_BORDER,
+  left: THIN_BLACK_BORDER,
+  bottom: THIN_BLACK_BORDER,
+  right: THIN_BLACK_BORDER,
+};
+
+const GRAY_FILL: ExcelJS.Fill = {
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb: 'FFF2F2F2' },
+};
+
+const WHITE_FILL: ExcelJS.Fill = {
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb: 'FFFFFFFF' },
+};
+
+function estimateRowHeight(rowValues: string[]): number {
+  let maxLines = 2;
+  rowValues.forEach((val, idx) => {
+    const colWidth = OFFICIAL_RKT_COLUMNS[idx]?.width ?? 24;
+    const effectiveChars = Math.max(colWidth - 2, 6);
+    const segments = String(val || '').split('\n');
+    let lines = 0;
+    for (const seg of segments) {
+      lines += Math.max(1, Math.ceil(seg.length / effectiveChars));
+    }
+    if (lines > maxLines) maxLines = lines;
+  });
+  return Math.max(46, maxLines * 14 + 14);
+}
+
+/**
+ * Generates an ExcelJS workbook faithfully matching Format_RKT_2026.xlsx (Screenshot 147):
+ * - Sheet "RKT", strict 9 columns (A–I)
+ * - Arial font, bold+underlined title A1:I2
+ * - Merged A3:C3 "Nama Satuan" & D3:I3 school name, A4:C4 "NPSN" & D4:I4 npsn with #F2F2F2 labels
+ * - Gray #F2F2F2 Row 6 headers with RichText (Bold title + Italic subtitle)
+ * - Thin black cell borders, wrapText, middle vertical alignment, and landscape fit-to-page setup
+ */
+export async function createOfficialRktWorkbook(
   school: { name: string; npsn: string },
   items: RktActionItem[]
-): XLSX.WorkBook {
+): Promise<ExcelJS.Workbook> {
   const rows = mapRktItemsToOfficialRows(items);
-  const matrix = buildOfficialRktSheetMatrix(school, rows);
-  const worksheet = XLSX.utils.aoa_to_sheet(matrix);
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'ARP Kemendikdasmen RKT Exporter';
+  workbook.created = new Date();
 
-  // Merge title and school identity fields exactly as in Format_RKT_2026.xlsx
-  worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 1, c: 8 } }, // A1:I2 Title
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } }, // A3:B3 Nama Satuan label
-    { s: { r: 2, c: 2 }, e: { r: 8, c: 8 } }, // fallback fixed below
-  ];
+  const sheet = workbook.addWorksheet('RKT', {
+    views: [{ state: 'frozen', ySplit: 6, showGridLines: true }],
+    pageSetup: {
+      orientation: 'landscape',
+      paperSize: 9, // A4
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: {
+        left: 0.4,
+        right: 0.4,
+        top: 0.5,
+        bottom: 0.5,
+        header: 0.25,
+        footer: 0.25,
+      },
+    },
+  });
 
-  // Fix exact merges carefully (row 2 col 2..8, row 3 col 0..1, row 3 col 2..8)
-  worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 1, c: 8 } }, // A1:I2 Title
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } }, // A3:B3 Nama Satuan label
-    { s: { r: 2, c: 2 }, e: { r: 2, c: 8 } }, // C3:I3 Nama Satuan value
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }, // A4:B4 NPSN label
-    { s: { r: 3, c: 2 }, e: { r: 3, c: 8 } }, // C4:I4 NPSN value
-  ];
+  // Set exact 9 column widths (A-I)
+  sheet.columns = OFFICIAL_RKT_COLUMNS.map((col) => ({
+    key: col.key,
+    width: col.width,
+  }));
 
-  // Column widths proportional to Format_RKT_2026.xlsx
-  worksheet['!cols'] = [
-    { wch: 6 },  // A: No
-    { wch: 24 }, // B: Nama SNP
-    { wch: 30 }, // C: Identifikasi
-    { wch: 36 }, // D: Akar Masalah
-    { wch: 38 }, // E: Kegiatan Benahi
-    { wch: 42 }, // F: Penjelasan Implementasi Kegiatan
-    { wch: 18 }, // G: Apakah Kegiatan Membutuhkan Biaya?
-    { wch: 24 }, // H: Kode ARKAS/NON
-    { wch: 40 }, // I: Kegiatan ARKAS/NON
-  ];
+  // Row 1-2: Title A1:I2
+  sheet.getRow(1).height = 24;
+  sheet.getRow(2).height = 24;
+  sheet.mergeCells('A1:I2');
+  const titleCell = sheet.getCell('A1');
+  titleCell.value = 'LEMBAR RENCANA KERJA TAHUNAN (RKT)';
+  titleCell.font = {
+    name: 'Arial',
+    size: 12,
+    bold: true,
+    underline: true,
+    color: { argb: 'FF000000' },
+  };
+  titleCell.alignment = {
+    horizontal: 'center',
+    vertical: 'middle',
+    wrapText: true,
+  };
+  for (let r = 1; r <= 2; r++) {
+    for (let c = 1; c <= 9; c++) {
+      const cell = sheet.getCell(r, c);
+      cell.fill = WHITE_FILL;
+      cell.border = {
+        top: r === 1 ? THIN_BLACK_BORDER : undefined,
+        bottom: r === 2 ? THIN_BLACK_BORDER : undefined,
+        left: c === 1 ? THIN_BLACK_BORDER : undefined,
+        right: c === 9 ? THIN_BLACK_BORDER : undefined,
+      };
+    }
+  }
 
-  // Row heights
-  worksheet['!rows'] = [
-    { hpt: 28 }, // Row 1
-    { hpt: 20 }, // Row 2
-    { hpt: 22 }, // Row 3 Nama Satuan
-    { hpt: 22 }, // Row 4 NPSN
-    { hpt: 10 }, // Row 5 blank spacer
-    { hpt: 90 }, // Row 6 multiline column headers
-    ...rows.map(() => ({ hpt: 54 })),
-  ];
+  // Row 3: Nama Satuan (A3:C3 gray bold label, D3:I3 white value)
+  sheet.getRow(3).height = 22;
+  sheet.mergeCells('A3:C3');
+  sheet.mergeCells('D3:I3');
+  sheet.getCell('A3').value = 'Nama Satuan';
+  sheet.getCell('D3').value = school.name || '';
+  for (let c = 1; c <= 9; c++) {
+    const cell = sheet.getCell(3, c);
+    cell.font = {
+      name: 'Arial',
+      size: 10,
+      bold: c <= 3,
+      color: { argb: 'FF000000' },
+    };
+    cell.fill = c <= 3 ? GRAY_FILL : WHITE_FILL;
+    cell.border = ALL_THIN_BORDERS;
+    cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  }
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'RKT');
+  // Row 4: NPSN (A4:C4 gray bold label, D4:I4 white value)
+  sheet.getRow(4).height = 22;
+  sheet.mergeCells('A4:C4');
+  sheet.mergeCells('D4:I4');
+  sheet.getCell('A4').value = 'NPSN';
+  sheet.getCell('D4').value = school.npsn || '';
+  for (let c = 1; c <= 9; c++) {
+    const cell = sheet.getCell(4, c);
+    cell.font = {
+      name: 'Arial',
+      size: 10,
+      bold: c <= 3,
+      color: { argb: 'FF000000' },
+    };
+    cell.fill = c <= 3 ? GRAY_FILL : WHITE_FILL;
+    cell.border = ALL_THIN_BORDERS;
+    cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  }
+
+  // Row 5: Blank spacer row matching Format_RKT_2026.xlsx
+  sheet.getRow(5).height = 12;
+
+  // Row 6: Table Column Headers (9 columns A-I with RichText Bold title + Italic subtitle)
+  const headerRow = sheet.getRow(6);
+  headerRow.height = 114;
+  OFFICIAL_RKT_COLUMNS.forEach((col, index) => {
+    const cell = headerRow.getCell(index + 1);
+    if (col.subtitle) {
+      cell.value = {
+        richText: [
+          {
+            text: `${col.title}\n`,
+            font: { name: 'Arial', size: 10, bold: true, color: { argb: 'FF000000' } },
+          },
+          {
+            text: col.subtitle,
+            font: { name: 'Arial', size: 10, italic: true, color: { argb: 'FF000000' } },
+          },
+        ],
+      };
+    } else {
+      cell.value = col.title;
+      cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF000000' } };
+    }
+    cell.fill = GRAY_FILL;
+    cell.border = ALL_THIN_BORDERS;
+    cell.alignment = {
+      horizontal: col.key === 'no' ? 'center' : 'left',
+      vertical: 'middle',
+      wrapText: true,
+    };
+  });
+
+  // Row 7+: RKT Data Rows
+  rows.forEach((r, idx) => {
+    const rowNumber = 7 + idx;
+    const values = [
+      r.no,
+      r.namaSnp,
+      r.identifikasi,
+      r.akarMasalah,
+      r.kegiatanBenahi,
+      r.penjelasanImplementasi,
+      r.butuhBiaya,
+      r.kodeArkasNon,
+      r.kegiatanArkasNon,
+    ];
+    const excelRow = sheet.getRow(rowNumber);
+    excelRow.height = estimateRowHeight(values);
+
+    values.forEach((val, colIdx) => {
+      const cell = excelRow.getCell(colIdx + 1);
+      cell.value = val;
+      cell.font = {
+        name: 'Arial',
+        size: 10,
+        color: { argb: 'FF000000' },
+      };
+      cell.fill = WHITE_FILL;
+      cell.border = ALL_THIN_BORDERS;
+      cell.alignment = {
+        horizontal:
+          colIdx === 0 || colIdx === 1 || colIdx === 6 ? 'center' : 'left',
+        vertical: 'middle',
+        wrapText: true,
+      };
+    });
+  });
+
   return workbook;
 }
 
-export function downloadOfficialRktXlsx(
+export async function createOfficialRktBuffer(
+  school: { name: string; npsn: string },
+  items: RktActionItem[]
+): Promise<Uint8Array> {
+  const workbook = await createOfficialRktWorkbook(school, items);
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Uint8Array(buffer as ArrayBuffer);
+}
+
+export async function downloadOfficialRktXlsx(
   school: { name: string; npsn: string },
   items: RktActionItem[],
   academicYear: string = '2026'
-): string {
-  const workbook = createOfficialRktWorkbook(school, items);
+): Promise<string> {
+  const bytes = await createOfficialRktBuffer(school, items);
   const yearTag = academicYear.replace(/[^0-9]/g, '').slice(0, 4) || '2026';
   const safeNpsn = (school.npsn || 'SEKOLAH').replace(/[^a-zA-Z0-9_-]/g, '');
   const filename = `Format_RKT_${yearTag}_${safeNpsn}.xlsx`;
-  XLSX.writeFile(workbook, filename);
+
+  const blob = new Blob([bytes.buffer as ArrayBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
   return filename;
 }

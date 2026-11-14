@@ -13,6 +13,7 @@ import {
   parseRaporSheetRows,
   syncSnpScoresFromRapor,
   generateRktFromRapor,
+  buildFullYearRktInspirations,
   SnpStandardScore,
   ArkasProgramItem,
 } from './petaMutuMath';
@@ -195,7 +196,7 @@ test('syncSnpScoresFromRapor updates SNP standards dynamically', () => {
   assert.equal(updated[2].score, 62.4);
 });
 
-test('generateRktFromRapor produces structured RKT with prioritized items and valid totals', () => {
+test('generateRktFromRapor produces structured RKT with prioritized items, ARKAS 4 Kemendikdasmen codes, and Non-ARKAS pairs', () => {
   const sampleIndicators = [
     { code: 'A.1', name: 'Kemampuan Literasi', score: 78.4, label: 'Baik' as const },
     { code: 'A.2', name: 'Kemampuan Numerasi', score: 62.1, label: 'Sedang' as const }, // Priority 1 (< 70)
@@ -215,18 +216,18 @@ test('generateRktFromRapor produces structured RKT with prioritized items and va
   assert.equal(rkt.schoolName, 'SD NEGERI GUNUNGSARI 04');
   assert.equal(rkt.sourceNpsn, '20536900');
   assert.equal(rkt.academicYear, '2026/2027');
-  assert.equal(rkt.summary.totalPrograms, 12); // 7 primary + 5 complementary Non-ARKAS
+  assert.equal(rkt.summary.totalPrograms, 14); // 7 paid ARKAS 4 + 7 complementary Non-ARKAS
   assert.equal(rkt.summary.p1Count, 4); // A.2 & D.10 each have paid + Non-ARKAS activity
-  assert.equal(rkt.items.length, 12);
-  assert.equal(rkt.summary.nonCostCount, 6); // D.1 + 5 Non-ARKAS complementary items
+  assert.equal(rkt.items.length, 14);
+  assert.equal(rkt.summary.nonCostCount, 7); // All 7 indicators have full-year Non-ARKAS activity
 
   // The first item should be a Priority 1 item
   assert.equal(rkt.items[0].priorityLevel, 'Prioritas Utama (P1)');
 
-  // Numerasi paid ARKAS action check
+  // Numerasi paid ARKAS 4 Kemendikdasmen action check
   const numerasiPaidItem = rkt.items.find((i) => i.raporCode === 'A.2' && !i.isNonArkas);
   assert.ok(numerasiPaidItem);
-  assert.equal(numerasiPaidItem?.arkasCode, '02.04.03');
+  assert.equal(numerasiPaidItem?.arkasCode, '04.06.05');
   assert.equal(numerasiPaidItem?.fundingSource, 'BOS Reguler');
   assert.equal(numerasiPaidItem?.estimatedBudget, 6500000);
 
@@ -237,8 +238,8 @@ test('generateRktFromRapor produces structured RKT with prioritized items and va
   assert.equal(numerasiNonArkas?.fundingSource, 'Non-Biaya');
   assert.equal(numerasiNonArkas?.estimatedBudget, 0);
 
-  // D.1 Kombel non-cost Non-ARKAS check
-  const kombelItem = rkt.items.find((i) => i.raporCode === 'D.1');
+  // D.1 Kombel non-cost Non-ARKAS check + paid 02.06.01 KKG/Kombel check
+  const kombelItem = rkt.items.find((i) => i.raporCode === 'D.1' && i.isNonArkas);
   assert.ok(kombelItem);
   assert.equal(kombelItem?.arkasCode, 'NON-ARKAS');
   assert.equal(kombelItem?.fundingSource, 'Non-Biaya');
@@ -248,4 +249,14 @@ test('generateRktFromRapor produces structured RKT with prioritized items and va
   assert.ok(rkt.summary.totalBudget > 0);
 });
 
-
+test('buildFullYearRktInspirations covers all 4 quarters with paid ARKAS 4 and zero-cost Non-ARKAS options', () => {
+  const inspirations = buildFullYearRktInspirations([
+    { code: 'A.1', name: 'Kemampuan Literasi', score: 78.4 },
+    { code: 'A.2', name: 'Kemampuan Numerasi', score: 62.1 },
+    { code: 'D.1', name: 'Kualitas Pembelajaran', score: 72.8 },
+  ]);
+  const quarters = new Set(inspirations.map((i) => i.quarter));
+  assert.deepEqual(Array.from(quarters).sort(), ['TW1', 'TW2', 'TW3', 'TW4']);
+  assert.ok(inspirations.some((i) => i.butuhBiaya === 'ya' && i.arkasCode === '04.06.05'));
+  assert.ok(inspirations.some((i) => i.butuhBiaya === 'tidak' && i.estimatedBudget === 0));
+});

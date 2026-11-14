@@ -9,7 +9,11 @@ import {
   PlusCircle,
   FileSpreadsheet,
 } from 'lucide-react';
-import { ArkasRecommendation } from '../data/simantapData';
+import {
+  ArkasRecommendation,
+  ARKAS_KEMENDIKDASMEN_VERSION,
+  ARKAS_KEMENDIKDASMEN_CATALOG,
+} from '../data/simantapData';
 import { calculateArkasSummary } from '../utils/petaMutuMath';
 
 interface ArkasTabProps {
@@ -29,9 +33,9 @@ export const ArkasTab: React.FC<ArkasTabProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // New Program form state
-  const [newCode, setNewCode] = useState('02.05.01');
+  const [newCode, setNewCode] = useState('04.06.05');
   const [newName, setNewName] = useState('');
-  const [newTarget, setNewTarget] = useState('Standar Proses');
+  const [newTarget, setNewTarget] = useState('Standar PTK');
   const [newBudget, setNewBudget] = useState(2500000);
   const [newIsNonCost, setNewIsNonCost] = useState(false);
   const [newTimeline, setNewTimeline] = useState('Triwulan II');
@@ -65,7 +69,7 @@ export const ArkasTab: React.FC<ArkasTabProps> = ({
 
   const handleOpenAddModal = (asNonArkas: boolean) => {
     setNewIsNonCost(asNonArkas);
-    setNewCode(asNonArkas ? 'NON-ARKAS' : '02.05.01');
+    setNewCode(asNonArkas ? 'NON-ARKAS' : '04.06.05');
     setNewBudget(asNonArkas ? 0 : 2500000);
     setIsAddModalOpen(true);
   };
@@ -76,7 +80,7 @@ export const ArkasTab: React.FC<ArkasTabProps> = ({
       setNewCode((prev) => (prev.toUpperCase().includes('NON-ARKAS') ? prev : 'NON-ARKAS'));
       setNewBudget(0);
     } else {
-      setNewCode((prev) => (prev.toUpperCase().includes('NON-ARKAS') ? '02.05.01' : prev));
+      setNewCode((prev) => (prev.toUpperCase().includes('NON-ARKAS') ? '04.06.05' : prev));
       setNewBudget((prev) => (prev === 0 ? 2500000 : prev));
     }
   };
@@ -159,6 +163,29 @@ export const ArkasTab: React.FC<ArkasTabProps> = ({
             <span>Generate Program Baru AI</span>
           </button>
         </div>
+      </div>
+
+      {/* ARKAS 4 Kemendikdasmen Sync Banner */}
+      <div className="bg-slate-900 text-white p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <FileSpreadsheet className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xs font-bold text-white">
+                Sinkronisasi Kode Rekening {ARKAS_KEMENDIKDASMEN_VERSION.appVersion}
+              </h3>
+              <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                {ARKAS_KEMENDIKDASMEN_VERSION.lastSyncDate}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              Menggunakan referensi resmi {ARKAS_KEMENDIKDASMEN_VERSION.regulation} ({ARKAS_KEMENDIKDASMEN_VERSION.fiscalYear}) beserta dukungan kegiatan swadaya Non-ARKAS (Rp 0).
+            </p>
+          </div>
+        </div>
+        <span className="text-[11px] font-mono text-slate-300 shrink-0">
+          {ARKAS_KEMENDIKDASMEN_CATALOG.length} Kode Prioritas PBD Aktif
+        </span>
       </div>
 
       {/* Filter and Add Control Bar */}
@@ -342,16 +369,44 @@ export const ArkasTab: React.FC<ArkasTabProps> = ({
                 </p>
               </div>
 
+              {!newIsNonCost && (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Pilih Cepat Referensi {ARKAS_KEMENDIKDASMEN_VERSION.appVersion}
+                  </label>
+                  <select
+                    aria-label="Pilih Kode Resmi ARKAS 4 Kemendikdasmen"
+                    value={newCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setNewCode(code);
+                      const found = ARKAS_KEMENDIKDASMEN_CATALOG.find((c) => c.code === code);
+                      if (found) {
+                        if (!newName.trim()) setNewName(found.name);
+                        setNewTarget(found.standardLabel);
+                      }
+                    }}
+                    className="w-full p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-slate-900 text-xs"
+                  >
+                    {ARKAS_KEMENDIKDASMEN_CATALOG.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} ({c.standardLabel}) — {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  {newIsNonCost ? 'Kode Penanda Non-ARKAS' : 'Kode Kegiatan ARKAS'}
+                  {newIsNonCost ? 'Kode Penanda Non-ARKAS' : 'Kode Kegiatan ARKAS 4'}
                 </label>
                 <input
                   type="text"
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
                   className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
-                  placeholder={newIsNonCost ? 'NON-ARKAS' : 'Misal: 02.04.05'}
+                  placeholder={newIsNonCost ? 'NON-ARKAS' : 'Misal: 04.06.05'}
                   required
                 />
               </div>
